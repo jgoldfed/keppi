@@ -116,7 +116,7 @@ keppi config add vault.exclude_dirs "_archive"
 keppi config set graph.relevance_threshold 0.5
 ```
 
-### MCP Server (Claude, Cursor, OpenClaw)
+### MCP Server (Claude Desktop, Cursor)
 
 ```bash
 keppi install claude    # Auto-configure for Claude Desktop
@@ -124,6 +124,8 @@ keppi install cursor    # Auto-configure for Cursor
 ```
 
 20+ graph-aware tools available to any MCP-compatible AI assistant: `blast_radius`, `context_pack`, `find_gaps`, `suggest_links`, `keyword_search`, and more.
+
+For other MCP clients (OpenClaw, etc.), use `keppi mcp-server /path/to/vault` and configure manually.
 
 ### Coming Soon
 
