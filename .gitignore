@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv
+.uv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Ruff
+.ruff_cache/
+
+# Distribution / packaging
+*.whl
+*.tar.gz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Keppi runtime data (stored per-user, not in repo)
+*.db
+keppi.toml
+
+# Logs
+*.log
+
+# Claude Code local settings (contains machine-specific paths)
+.claude/settings.local.json

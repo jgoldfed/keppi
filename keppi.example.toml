@@ -1,0 +1,78 @@
+# keppi.example.toml
+# Copy this to ~/.keppi/keppi.toml and customize for your vault.
+# Or just run: keppi init --quick /path/to/your/vault
+
+[vault]
+# Absolute path to your Obsidian vault (set automatically by keppi init)
+path = "."
+
+# File extensions to index
+file_extensions = [".md"]
+
+# Directories to skip (Obsidian internals + common noise)
+exclude_dirs = [
+    ".obsidian",    # Obsidian config (always skip)
+    ".git",         # Git repo data
+    "templates",    # Obsidian templates folder
+    ".trash",       # Obsidian trash
+    # "attachments", # Uncomment if you have an attachments folder
+    # "4-Archives",  # Uncomment if you archive old content
+    # "Navigation-Hubs-archived",  # Uncomment if you have archived hubs
+]
+
+# File patterns to skip (glob syntax)
+exclude_patterns = [
+    "*.excalidraw.md",  # Excalidraw drawings (binary-like)
+    # "*.base",          # Uncomment if you use Obsidian Bases
+]
+
+[frontmatter]
+# Which frontmatter fields map to Keppi concepts
+type_field = "type"
+subtype_field = "subtype"
+status_field = "status"
+updated_field = "updated"
+tags_field = "tags"
+aliases_field = "aliases"
+related_field = "related_to"
+sources_field = "sources"
+url_field = "url"
+
+[links]
+# How to resolve [[wikilinks]]: "title" matches note titles, "path" matches file paths
+resolve_strategy = "title"
+case_sensitive = false
+
+[tags]
+# Whether to index #inline/tags and frontmatter tags
+inline_tags = true
+frontmatter_tags = true
+nested_separator = "/"
+
+[graph]
+# Edge weights for different connection types
+wikilink_weight = 1.0
+embed_weight = 1.5
+related_to_weight = 2.0
+tag_overlap_weight = 0.5
+folder_proximity_weight = 0.3
+
+# Community detection
+community_algorithm = "louvain"
+min_community_size = 3
+
+# Traversal defaults
+default_depth = 2
+relevance_threshold = 0.3
+
+[storage]
+# Where to store graph databases (uses vault hash for multi-vault support)
+graph_db = "~/.keppi/graphs/{vault_hash}.db"
+content_cache = true
+cache_max_age_days = 30
+
+[watch]
+# File watcher for automatic incremental updates
+enabled = true
+debounce_ms = 2000
+ignore_patterns = [".obsidian/*"]
