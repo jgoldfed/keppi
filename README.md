@@ -125,13 +125,14 @@ keppi install cursor    # Auto-configure for Cursor
 
 20+ graph-aware tools available to any MCP-compatible AI assistant: `blast_radius`, `context_pack`, `find_gaps`, `suggest_links`, `keyword_search`, and more.
 
-### Interactive Visualization
+### Coming Soon
 
 ```bash
-keppi visualize "Cloud Vendor" --depth 2 --output network.html --open
+# Interactive visualization (FR-002, in development)
+keppi visualize "Data Platform Migration" --depth 2 --output migration.html --open
 ```
 
-Generates an interactive HTML graph you can drag, zoom, and filter. Color-coded by node type, edge-weighted by relationship type. [See example →](https://sleek-sierra-7tee.here.now/)
+Generates an interactive HTML graph you can drag, zoom, and filter. Color-coded by node type, edge-weighted by relationship type.
 
 ---
 
@@ -163,7 +164,6 @@ keppi build ~/Documents/Obsidian\ Vault
 # 3. Explore
 keppi stats ~/Documents/Obsidian\ Vault
 keppi blast-radius "some concept" ~/Documents/Obsidian\ Vault
-keppi visualize "some concept" --depth 2 --open
 ```
 
 **Windows:** Set `PYTHONUTF8=1` in your environment or prefix commands:
