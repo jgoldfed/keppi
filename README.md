@@ -21,19 +21,32 @@ The missing piece isn't the wiki itself. It's the **query layer**. Similarity se
 
 **Keppi builds the graph that makes the wiki queryable at scale.** It parses every wikilink, tag, frontmatter field, and folder relationship into a weighted directed graph, then answers: "Given this topic, what's the minimal set of notes I need — and how are they connected?"
 
-## The Problem in One Screenshot
+## The Problem
+
+Most knowledge bases are disconnected. Notes sit in folders with a few wikilinks and tags, but no real structure. You can't see what's connected, what's broken, or what's missing.
 
 ```
-$ keppi stats ~/Documents/Obsidian\ Vault
-
- Nodes:    1,471  (1,471 notes, 0 orphans)
- Edges:    267,581
- Density:  0.124
- Edge types:  tag_overlap: 261,722  wikilink: 2,505  related_to: 572
- Broken links: 0
+Nodes:    2,269
+Edges:    614,139
+Density:  0.119
+Edge types:  tag_overlap: 609,722  wikilink: 2,075  related_to: 342
+Broken links: 792
+Orphans:      5
 ```
 
-1,471 notes. 267K connections. Zero broken links. Every note knows its neighbors.
+792 broken links. 5 orphan notes. A pile of tag overlaps masquerading as connections. That's a knowledge base where you can't trust what you find.
+
+**After Keppi:**
+
+```
+Nodes:    1,471  (1,471 notes, 0 orphans)
+Edges:    268,375
+Density:  0.124
+Edge types:  tag_overlap: 265,302  wikilink: 2,510  related_to: 562
+Broken links: 0
+```
+
+1,471 notes. 268K connections. Zero broken links. Every note knows its neighbors.
 
 ## 60-Second Demo
 
