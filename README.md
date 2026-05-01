@@ -254,10 +254,3 @@ See [keppi.example.toml](keppi.example.toml) for the full config reference.
 
 MIT — See [LICENSE](LICENSE).
 
----
-
-## Acknowledgments
-
-Keppi extends the ideas in [Karpathy's LLM Wiki](https://github.com/karpathy/llm.wiki) — the insight that you should compile raw notes into a structured wiki and query the wiki instead of re-reading sources. We add the graph layer that makes that approach scale beyond a few hundred notes.
-
-The name **Keppi** (קעפּי) is the Yiddish diminutive of *kop* (head). A little head that finds connections others miss.
