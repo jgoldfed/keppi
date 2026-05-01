@@ -14,10 +14,10 @@ Research a question across the vault using Keppi's graph traversal and context p
 
 ## When to Use
 
-- "Tell me about my evidence against the EEOC document"
-- "What connects my DGEA case to my severance negotiations?"
-- "Summarize everything I know about the Cetera project"
-- "What would be affected if I move to Orlando?"
+- "What would be affected if I move to another city?"
+- "What connects my current project to my career plans?"
+- "Summarize everything I know about the Acme project"
+- "Tell me about my contract negotiations with that client"
 - Any question that needs *multiple related notes* to answer, not just one keyword match
 
 ## Steps
@@ -27,8 +27,8 @@ Research a question across the vault using Keppi's graph traversal and context p
 Run `keppi search` to find the most relevant notes for the topic:
 
 ```bash
-keppi search "EEOC" ~/Documents/Obsidian\ Vault
-keppi search "evidence" ~/Documents/Obsidian\ Vault
+keppi search "job relocation" ~/Documents/Obsidian\ Vault
+keppi search "moving costs" ~/Documents/Obsidian\ Vault
 ```
 
 ### 2. Trace the connections
@@ -36,8 +36,8 @@ keppi search "evidence" ~/Documents/Obsidian\ Vault
 Run `keppi blast-radius` on the most relevant notes to find everything connected:
 
 ```bash
-keppi blast-radius "EEOC" --depth 2 ~/Documents/Obsidian\ Vault
-keppi blast-radius "DGEA" --depth 2 ~/Documents/Obsidian\ Vault
+keppi blast-radius "Job Relocation" --depth 2 ~/Documents/Obsidian\ Vault
+keppi blast-radius "Career Planning" --depth 2 ~/Documents/Obsidian\ Vault
 ```
 
 This gives you the structural map — what's connected to the topic and how strongly.
@@ -47,7 +47,7 @@ This gives you the structural map — what's connected to the topic and how stro
 Run `keppi context-pack` with a token budget appropriate for the model:
 
 ```bash
-keppi context-pack "EEOC evidence" --budget 8000 ~/Documents/Obsidian\ Vault
+keppi context-pack "relocation impact" --budget 8000 ~/Documents/Obsidian\ Vault
 ```
 
 This selects the minimal set of notes that fit within the token budget, ranked by relevance. For deep research, use 12000-16000 tokens. For quick answers, 4000-6000.
@@ -66,23 +66,23 @@ If the research reveals new connections or insights, update relevant wiki pages 
 
 ## Example
 
-**Question:** "Tell me about my evidence against the EEOC document sent to me."
+**Question:** "What would be affected if I relocate for a job?"
 
 **Step 1 — Search:**
 ```bash
-keppi search "EEOC" ~/Documents/Obsidian\ Vault
+keppi search "relocation" ~/Documents/Obsidian\ Vault
 ```
-→ Finds 5 notes mentioning EEOC
+→ Finds 5 notes mentioning relocation
 
 **Step 2 — Blast radius:**
 ```bash
-keppi blast-radius "EEOC" --depth 2 ~/Documents/Obsidian\ Vault
+keppi blast-radius "Job Relocation" --depth 2 ~/Documents/Obsidian\ Vault
 ```
-→ EEOC → DGEA → AVER → Lindsey Krone → Severance → DGEA Case Notes
+→ Job Relocation → Housing → Cost of Living → Commute → School Districts → Remote Work Policy
 
 **Step 3 — Context pack:**
 ```bash
-keppi context-pack "EEOC evidence" --budget 8000 ~/Documents/Obsidian\ Vault
+keppi context-pack "relocation impact" --budget 8000 ~/Documents/Obsidian\ Vault
 ```
 → Returns 6 notes fitting 7,847 tokens
 
