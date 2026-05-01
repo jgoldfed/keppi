@@ -175,6 +175,29 @@ Desktop Commander:start_process
 
 ---
 
+### Step 6 — Promotion Rule: Close the Wiki Gap
+
+Every time you left the fast lane and needed Keppi or raw notes to answer, the wiki has a gap. Close it before you're done.
+
+**The rule:** Any fact you had to traverse the graph to find belongs in the wiki. The search path IS the signal.
+
+| Promote to wiki | Leave in raw notes |
+|---|---|
+| Key facts, figures, pricing, dates | Full meeting transcripts |
+| Status, decisions, outcomes | Detailed context and quotes |
+| Strategy summaries | Step-by-step reasoning |
+| Anything you'll query again | One-time reference material |
+
+**How to promote:**
+1. Identify the 1-3 key facts that made you leave the fast lane
+2. Add them as a concise section to the relevant wiki page (e.g., `## Pricing`, `## Key Dates`, `## Status`)
+3. Add a wikilink to the source note: `Source: [[Source Note Name]]`
+4. Result: next query on this topic resolves in a single wiki read (~400 tokens)
+
+**Example:** You asked "What does Dan Goodman charge?" and had to traverse 3 hops to find pricing in a raw email note. Promote a one-line pricing summary into the `Dan Goodman` wiki page with a link back to the source. Next time, the wiki fast lane answers it directly.
+
+---
+
 ## Decision Tree
 
 ```
@@ -200,3 +223,4 @@ Is topic in wiki/index.md?
 | Graph Lane + 2 wiki pages | 5-6 | ~1,500-2,500 |
 | Raw Note (1 transcript) | 1 | ~3,000-8,000 |
 | vault-research (full) | 8-12 | ~8,000-16,000 |
+| After promotion | 1 | ~400 (wiki read only) |

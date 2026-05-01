@@ -195,19 +195,26 @@ in the wiki, note them — they're candidates for a wiki update.
 
 ---
 
-### Step 6 — Update the Wiki (Optional)
+### Step 6 — Promotion Rule: Close the Wiki Gap
 
-If the research surfaces connections or insights not yet captured:
+Deep research often surfaces facts that should live in the wiki, not just in your answer. Every time you had to read 4+ raw notes to assemble an answer, the wiki needs updating.
 
-```
-Desktop Commander:start_process
-  command: obsidian read file=wiki-ops
-  shell: powershell.exe
-  timeout_ms: 8000
-```
+**The rule:** If you assembled facts from multiple raw notes that would have answered the question on their own, promote them. The wiki is a queryable facts layer, not a summary layer.
 
-Follow the ingest process in `wiki-ops.md` to create or update the relevant
-entity/concept/synthesis page. This closes the Karpathy flywheel loop.
+| Promote to wiki | Leave in raw notes |
+|---|---|
+| Key facts, figures, pricing, dates | Full meeting transcripts |
+| Status, decisions, outcomes | Detailed context and quotes |
+| Strategy summaries | Step-by-step reasoning |
+| Anything you'll query again | One-time reference material |
+
+**How to promote:**
+1. After synthesizing your answer, identify the 1-3 key facts that required raw note reads
+2. Add them as a concise section to the relevant wiki page (e.g., `## Pricing`, `## Key Dates`, `## Status`)
+3. Add a wikilink to each source note: `Source: [[Source Note Name]]`
+4. Result: next query on this topic resolves in a single wiki read (~400 tokens) instead of a full research pass (~8,000–16,000 tokens)
+
+**Example:** A "summarize everything about the Cetera project" query required reading 5 raw meeting notes. The key facts — contract status, deliverables, deadlines — get promoted to the `Cetera` wiki page. Next time, the wiki fast lane answers the factual questions; only deep evidence retrieval needs the research path.
 
 ---
 
@@ -251,6 +258,7 @@ Desktop Commander:start_process
 - **Wiki reads are cheap** — ~400 tokens vs 3,000–8,000 for a raw transcript. Always
   try the wiki fast lane before committing to raw note reads.
 - **context_pack with a tight budget** is better than reading 10 raw notes individually.
+- **Promote key facts after deep research** — if you assembled an answer from 4+ raw notes, add the key facts to the relevant wiki page. Next query resolves at wiki-lane cost (~400 tokens) instead of a full research pass (~8,000–16,000 tokens).
 
 ---
 
