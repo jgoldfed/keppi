@@ -129,12 +129,22 @@ For other MCP clients (OpenClaw, etc.), use `keppi mcp-server /path/to/vault` an
 
 ### Coming Soon
 
+**FR-001: Smart `keppi init`** — Auto-detect vault patterns and suggest exclusions (archive folders, attachment dirs, binary files). No more manual TOML editing.
+
+**FR-002: `keppi visualize`** — Interactive HTML graph visualization with drag, zoom, and filter. Color-coded by node type, edge-weighted by relationship type.
+
 ```bash
-# Interactive visualization (FR-002, in development)
 keppi visualize "Data Platform Migration" --depth 2 --output migration.html --open
 ```
 
-Generates an interactive HTML graph you can drag, zoom, and filter. Color-coded by node type, edge-weighted by relationship type.
+**FR-003: `keppi connect`** — Auto-generate wikilinks and `related_to` frontmatter from graph analysis. The auto-wiring that makes the graph work for notes that were never written to be graphed.
+
+```bash
+keppi connect --dry-run           # preview suggestions
+keppi connect --auto-accept       # apply high-confidence connections
+```
+
+See [ROADMAP.md](docs/ROADMAP.md) for full feature request details.
 
 ---
 
