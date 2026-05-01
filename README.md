@@ -126,7 +126,7 @@ The wiki is the *what*. Keppi is the *how everything connects*. Without the grap
 |---------|-------------|--------------------|
 | `keppi search` | Keyword search across title, tags, headings, body | `keppi search "databricks"` → matching notes ranked by relevance |
 | `keppi broken-links` | List all broken wikilinks | `keppi broken-links` → `Source → Missing target` for every broken link |
-| `keppi suggest-links` | Suggest missing connections based on content overlap | `keppi suggest-links "Yishay Harel"` → notes that should link but don't |
+| `keppi suggest-links` | Suggest missing connections based on content overlap | `keppi suggest-links "Project Alpha"` → notes that should link but don't |
 
 ### Config
 
@@ -143,9 +143,18 @@ keppi install claude    # Auto-configure for Claude Desktop
 keppi install cursor    # Auto-configure for Cursor
 ```
 
-20+ graph-aware tools available to any MCP-compatible AI assistant: `blast_radius`, `context_pack`, `find_gaps`, `suggest_links`, `keyword_search`, and more.
+17 graph-aware tools available to any MCP-compatible AI assistant: `blast_radius`, `context_pack`, `find_gaps`, `suggest_links`, `keyword_search`, and more.
 
-For other MCP clients (OpenClaw, etc.), use `keppi mcp-server /path/to/vault` and configure manually.
+For other MCP clients, use `keppi mcp-server /path/to/vault` and configure manually.
+
+### Agent Skills
+
+Keppi ships two agent skills for structured research workflows:
+
+- **wiki-search** — Fast path: check the wiki layer first (~400-600 tokens), fall back to Keppi graph navigation. Best for known entities, people, projects, and relationships.
+- **vault-research** — Deep path: comprehensive multi-note analysis using blast radius, context packs, and raw note reads. Best for evidence retrieval from meeting transcripts or questions requiring 4+ source notes.
+
+Both skills are in the `skills/` directory and can be added to any MCP-compatible AI assistant.
 
 ### Coming Soon
 
