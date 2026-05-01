@@ -99,33 +99,42 @@ The wiki is the *what*. Keppi is the *how everything connects*. Without the grap
 
 ### Core Commands
 
-```bash
-keppi init                              # Auto-detect vault, write config
-keppi build ~/Documents/Obsidian\ Vault  # Parse & build graph
-keppi stats ~/Documents/Obsidian\ Vault   # Node/edge/density summary
+| Command | What it does | Example input → output |
+|---------|-------------|--------------------|
+| `keppi init` | Auto-detect vault, write config | `keppi init` → finds vault, writes `~/.keppi/keppi.toml` |
+| `keppi build` | Parse all notes, build the graph | `keppi build ~/vault` → `1,471 notes, 268K edges` |
+| `keppi stats` | Node/edge/density summary | `keppi stats ~/vault` → shows counts, edge types, broken links |
 
-# Analysis
-keppi blast-radius "Data Pipeline" --depth 2
-keppi traverse "Cloud DB" --depth 3
-keppi path "Cloud Analytics" "Career"
-keppi context-pack "data lakehouse" --budget 4000
-keppi communities
-keppi gaps
-keppi hubs
-keppi bridges
-keppi orphans
-keppi drift
+### Analysis
 
-# Search & Links
-keppi search "databricks"
-keppi broken-links
-keppi suggest-links "Cloud Vendor"
+| Command | What it does | Example input → output |
+|---------|-------------|--------------------|
+| `keppi blast-radius` | Impact analysis — what's affected if this note changes | `keppi blast-radius "Job Relocation" --depth 2` → ranked list of connected notes by relevance |
+| `keppi traverse` | Expand the graph outward from a note | `keppi traverse "Databricks" --depth 3` → all notes within 3 hops, with relevance scores |
+| `keppi path` | Shortest path between two notes | `keppi path "Databricks" "Career"` → `Databricks → Data Pipeline → Career` |
+| `keppi context-pack` | Token-budgeted reading set for AI context | `keppi context-pack "data lakehouse" --budget 4000` → minimal set of notes fitting 4K tokens |
+| `keppi communities` | Detect topical clusters via Louvain algorithm | `keppi communities` → groups of tightly-connected notes by topic |
+| `keppi gaps` | Find structural gaps — clusters with shared tags but few links | `keppi gaps` → "data-engineering" cluster ↔ "career" cluster: 1 bridge edge |
+| `keppi hubs` | Top notes by degree centrality | `keppi hubs` → notes with the most connections |
+| `keppi bridges` | Top boundary-spanning notes by betweenness centrality | `keppi bridges` → notes that connect otherwise separate clusters |
+| `keppi orphans` | Notes with zero connections | `keppi orphans` → isolated notes that need linking |
+| `keppi drift` | Stale notes connected to recently-updated ones | `keppi drift` → old notes that may need refreshing |
 
-# Config
-keppi config get vault.exclude_dirs
-keppi config add vault.exclude_dirs "_archive"
-keppi config set graph.relevance_threshold 0.5
-```
+### Search & Links
+
+| Command | What it does | Example input → output |
+|---------|-------------|--------------------|
+| `keppi search` | Keyword search across title, tags, headings, body | `keppi search "databricks"` → matching notes ranked by relevance |
+| `keppi broken-links` | List all broken wikilinks | `keppi broken-links` → `Source → Missing target` for every broken link |
+| `keppi suggest-links` | Suggest missing connections based on content overlap | `keppi suggest-links "Yishay Harel"` → notes that should link but don't |
+
+### Config
+
+| Command | What it does | Example |
+|---------|-------------|--------|
+| `keppi config get` | Print config value | `keppi config get vault.exclude_dirs` |
+| `keppi config add` | Add to a list value | `keppi config add vault.exclude_dirs "_archive"` |
+| `keppi config set` | Set a config value | `keppi config set graph.relevance_threshold 0.5` |
 
 ### MCP Server (Claude Desktop, Cursor)
 
