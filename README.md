@@ -57,19 +57,17 @@ $ keppi blast-radius "Job Relocation" --depth 2
 Blast Radius: Job Relocation (depth=2)
 Seed: projects/Job Relocation
 
-  1. Job Search              relevance=0.89  distance=1
-  2. Family Plans            relevance=0.82  distance=1
+  1. Family Plans            relevance=0.89  distance=1
+  2. Career                  relevance=0.82  distance=1
   3. Client Contract         relevance=0.71  distance=1
-  4. Career                  relevance=0.68  distance=1
-  5. Vendor Relationships    relevance=0.65  distance=1
-  6. Compliance              relevance=0.61  distance=1
-  7. Cloud Vendor            relevance=0.58  distance=1
-  8. Data Pipeline           relevance=0.55  distance=2
-  9. CRM Platform            relevance=0.42  distance=2
- 10. Expertise Reversal      relevance=0.31  distance=2
+  4. Cost of Living          relevance=0.68  distance=1
+  5. Job Search              relevance=0.65  distance=1
+  6. Housing                 relevance=0.58  distance=1
+  7. Commute                 relevance=0.52  distance=2
+  8. Schools                 relevance=0.41  distance=2
 ```
 
-That's not search. That's **knowing which notes matter** for a decision you're about to make. A job relocation affects your family, your client contracts, your vendor relationships, and your career trajectory. All from one query.
+That's not search. That's **knowing which notes matter** for a decision you're about to make. A job relocation affects your family, your career, your client obligations, and your daily life. All from one query.
 
 ## Where It Extends Karpathy's Vision
 
@@ -93,7 +91,7 @@ The wiki is the *what*. Keppi is the *how everything connects*. Without the grap
 
 | Question | Similarity Search | Graph Traversal |
 |----------|------------------|-----------------|
-| "What does a relocation affect?" | Pages containing "relocation" | Job Search → Family Plans → Client Contract → Career → Vendor Relationships |
+| "What does a relocation affect?" | Pages containing "relocation" | Family Plans → Career → Client Contract → Cost of Living → Housing |
 | "What's connected to my analytics platform?" | Pages mentioning "analytics" | Data Pipeline (implements it) → Cloud DB (runs on it) → Data Governance (quality rules) → Vendor Alpha (consulting partner) |
 | "What haven't I connected?" | Can't detect | Gaps between clusters, orphan notes |
 
