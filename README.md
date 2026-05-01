@@ -56,7 +56,7 @@ Seed: entities/Data Platform Migration
  10. Expertise Reversal      relevance=0.31  distance=2
 ```
 
-That's not search. That's **knowing which notes matter** for a decision you're about to make. A data platform migration affects your job search, your client contracts, your integration project, and your family's plans. All from one query.
+That's not search. That's **knowing which notes matter** for a decision you're about to make. A data platform migration affects your client contracts, your compliance requirements, your integration project, and your vendor relationships. All from one query.
 
 ## Where It Extends Karpathy's Vision
 
