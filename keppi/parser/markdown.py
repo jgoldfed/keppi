@@ -145,7 +145,7 @@ def parse_note(
         "'", "dv.", "javascript:", "<", ">",     # existing filters
         "$", "string(", "!= ", "= \"${",          # Dataview/shell fragments
         ".pdf", ".docx", ".json", ".bak", ".dump", # file references (non-.md)
-        ".js",                                     # JavaScript file refs
+        ".js", ".base",                    # JavaScript and Obsidian Bases file refs
     )
     wikilinks = [w for w in wikilinks if not any(
         pat in w for pat in _junk_patterns
