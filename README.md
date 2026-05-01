@@ -80,7 +80,7 @@ The wiki is the *what*. Keppi is the *how everything connects*. Without the grap
 
 | Question | Similarity Search | Graph Traversal |
 |----------|------------------|-----------------|
-| "What does a data platform migration affect?" | Pages containing "migration" or "platform" | Job Search (career impact) → Cloud Vendor (contract change) → Compliance (new regulations) → Client Contract (SLA updates) → Integration Project (migration scope) |
+| "What does a data platform migration affect?" | Pages containing "migration" or "platform" | Cloud Vendor (contract change) → Compliance (new regulations) → Client Contract (SLA updates) → Integration Project (migration scope) → Data Pipeline (architecture redesign) |
 | "What's connected to my analytics platform?" | Pages mentioning "analytics" | Data Pipeline (implements it) → Cloud DB (runs on it) → Data Governance (quality rules) → Vendor Alpha (consulting partner) |
 | "What haven't I connected?" | Can't detect | Gaps between clusters, orphan notes |
 
