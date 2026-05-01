@@ -1,108 +1,189 @@
 ---
 name: vault-research
 description: >
-  Research a topic across the Obsidian vault using Keppi's graph engine.
-  Use when asked to find evidence, synthesize information, or answer questions
-  that require reading multiple connected notes. NOT for simple keyword lookups
-  — use this when the question needs context from related notes, trace connections,
-  or provide a cohesive answer from multiple sources.
+  Deep evidence research across the Obsidian vault using Keppi MCP tools and the
+  Obsidian CLI. Use when wiki-search has been tried and is insufficient — raw meeting
+  transcripts, comprehensive multi-note analysis, or when the wiki has no coverage.
+  NOT for quick entity/concept lookups — use wiki-search for those. Triggers:
+  "find everything about X across my notes", "what did we discuss in meetings about Y",
+  "give me the full picture on Z", any question requiring 4+ raw note reads.
 ---
 
-# Vault Research
+# Vault Research (Deep)
 
-Research a question across the vault using Keppi's graph traversal and context packing.
+Comprehensive vault research using Keppi MCP tools for graph navigation and the
+Obsidian CLI for reading. Use this when wiki-search is insufficient.
 
-## When to Use
+**Keppi calls use MCP tools directly** — not bash, not CLI.
+**All vault reads use the Obsidian CLI** via Desktop Commander with `shell: cmd`.
 
-- "What would be affected if I move to another city?"
-- "What connects my current project to my career plans?"
-- "Summarize everything I know about the Acme project"
-- "Tell me about my contract negotiations with that client"
-- Any question that needs *multiple related notes* to answer, not just one keyword match
+---
+
+## When to Use This Skill
+
+- Deep evidence retrieval from raw meeting transcripts
+- Comprehensive analysis requiring 4+ note reads
+- Questions that need specific quotes or step-by-step reconstruction
+- The wiki has no coverage or is stale for this topic
+- "Summarize everything across all my notes about X"
+
+## Try wiki-search First
+
+If the question is about a known entity, person, project, or concept, **try wiki-search
+first**. It answers 80% of queries in 2-3 obsidian reads at 1/10th the token cost.
+Come here when wiki-search sends you — or when you know you need raw source depth.
+
+---
 
 ## Steps
 
-### 1. Find the entry points
+### Step 0 — Quick Wiki Check
 
-Run `keppi search` to find the most relevant notes for the topic:
+Even for deep research, check the wiki first. It may have a synthesis that reframes
+what you need from raw notes.
 
-```bash
-keppi search "job relocation" ~/Documents/Obsidian\ Vault
-keppi search "moving costs" ~/Documents/Obsidian\ Vault
+```
+Desktop Commander:start_process
+  command: obsidian read file=index
+  shell: cmd
+  timeout_ms: 8000
 ```
 
-### 2. Trace the connections
+If a relevant wiki page exists, read it. Use it as a **map** for the raw note reads
+ahead — the `sources:` frontmatter field tells you exactly which raw notes to target.
 
-Run `keppi blast-radius` on the most relevant notes to find everything connected:
+---
 
-```bash
-keppi blast-radius "Job Relocation" --depth 2 ~/Documents/Obsidian\ Vault
-keppi blast-radius "Career Planning" --depth 2 ~/Documents/Obsidian\ Vault
+### Step 1 — Find Entry Points
+
+```python
+keppi:keyword_search(query="<topic keywords>", limit=5)
 ```
 
-This gives you the structural map — what's connected to the topic and how strongly.
+Run 1-2 targeted searches. Keep queries to 2-4 words. Each query must be meaningfully
+different — repeating terms returns the same results.
 
-### 3. Build the context pack
+---
 
-Run `keppi context-pack` with a token budget appropriate for the model:
+### Step 2 — Trace Connections (Blast Radius)
 
-```bash
-keppi context-pack "relocation impact" --budget 8000 ~/Documents/Obsidian\ Vault
+```python
+keppi:blast_radius(note="<TopResultNote>", depth=2)
 ```
 
-This selects the minimal set of notes that fit within the token budget, ranked by relevance. For deep research, use 12000-16000 tokens. For quick answers, 4000-6000.
+This gives you the structural map — which notes are connected, and how strongly.
+`related_to` edges (weight 2.0) are more meaningful than tag overlaps (weight 0-0.5).
+Use depth=2; depth 3+ gets noisy.
 
-### 4. Read the sources
+---
 
-Read each note returned by the context pack using the `read` tool. Start with the highest-relevance notes.
+### Step 3 — Build the Context Pack
 
-### 5. Synthesize the answer
-
-Combine the graph structure (blast radius) with the content (read notes) to answer the question. Cite specific notes by title.
-
-### 6. Update the wiki (optional)
-
-If the research reveals new connections or insights, update relevant wiki pages in `3-Resources/wiki/`.
-
-## Example
-
-**Question:** "What would be affected if I relocate for a job?"
-
-**Step 1 — Search:**
-```bash
-keppi search "relocation" ~/Documents/Obsidian\ Vault
+```python
+keppi:context_pack(query="<topic>", budget=8000)
 ```
-→ Finds 5 notes mentioning relocation
 
-**Step 2 — Blast radius:**
-```bash
-keppi blast-radius "Job Relocation" --depth 2 ~/Documents/Obsidian\ Vault
+Keppi selects the minimal set of notes fitting within the token budget, ranked by
+relevance to the query. This is your reading list.
+
+**Token budget guide:**
+
+| Scope | Budget |
+|-------|--------|
+| Quick deep-dive | 4,000 |
+| Standard research | 8,000 |
+| Comprehensive analysis | 12,000-16,000 |
+| Full context (use sparingly) | 20,000+ |
+
+---
+
+### Step 4 — Read the Notes
+
+Read each note from the context pack via obsidian CLI, highest relevance first.
+
+Single-word names:
 ```
-→ Job Relocation → Housing → Cost of Living → Commute → School Districts → Remote Work Policy
-
-**Step 3 — Context pack:**
-```bash
-keppi context-pack "relocation impact" --budget 8000 ~/Documents/Obsidian\ Vault
+Desktop Commander:start_process
+  command: obsidian read file=NoteTitle
+  shell: cmd
+  timeout_ms: 10000
 ```
-→ Returns 6 notes fitting 7,847 tokens
 
-**Step 4 — Read:** Read each note, starting with highest relevance.
+Names with spaces — search first to get the path, then read:
+```
+Desktop Commander:start_process
+  command: obsidian search query="Note Title" limit=1
+  shell: cmd
+  timeout_ms: 8000
 
-**Step 5 — Synthesize:** Combine findings into a cohesive answer citing specific sources.
+Desktop Commander:start_process
+  command: obsidian read path=<returned-path>
+  shell: cmd
+  timeout_ms: 10000
+```
 
-## Token Budget Guide
+You can also use the exact path returned by `keppi:query_node` directly in
+`obsidian read path=<path>`.
 
-| Model | Recommended Budget | Notes |
-|-------|-------------------|-------|
-| Quick question | 4000 | 2-3 notes |
-| Standard research | 8000 | 4-6 notes |
-| Deep analysis | 12000-16000 | 8-12 notes |
-| Full context | 20000+ | Use sparingly |
+---
 
-## Important
+### Step 5 — Synthesize
 
-- Always run `keppi search` first to find entry points — don't assume you know which notes exist
-- Use `--depth 2` for blast radius (depth 3+ gets noisy)
-- Start with a smaller token budget and increase if needed
-- Cite note titles in your answer so the user can find them
-- If Keppi returns no results, the topic may not be in the vault — say so
+Combine graph structure (blast radius relevance scores) with note content to answer
+the question. Cite notes by title. If the research reveals new cross-connections not
+in the wiki, note them — they're candidates for a wiki update.
+
+---
+
+### Step 6 — Update the Wiki (Optional)
+
+If the research surfaces connections or insights not yet captured:
+
+```
+Desktop Commander:start_process
+  command: obsidian read file=wiki-ops
+  shell: cmd
+  timeout_ms: 8000
+```
+
+Follow the ingest process in `wiki-ops.md` to create or update the relevant
+entity/concept/synthesis page. This closes the Karpathy flywheel loop.
+
+---
+
+## Obsidian CLI Quick Reference
+
+```
+Desktop Commander:start_process
+  command: obsidian <command> <args>
+  shell: cmd        ← ALWAYS cmd. PowerShell swallows output.
+  timeout_ms: 10000
+```
+
+| Purpose | Command |
+|---------|---------|
+| Read wiki index | `obsidian read file=index` |
+| Read note (single word) | `obsidian read file=NoteName` |
+| Search for path (names with spaces) | `obsidian search query="Note Title" limit=1` |
+| Read by exact path | `obsidian read path=1-Projects/DGEA/some note.md` |
+
+---
+
+## Keppi MCP Tools Used in This Skill
+
+| Tool | Purpose |
+|------|---------|
+| `keppi:keyword_search` | Find entry-point notes by keyword |
+| `keppi:blast_radius` | Map structural connections from a seed note |
+| `keppi:context_pack` | Token-budgeted reading list for AI context |
+| `keppi:query_node` | Get full graph metadata + edges for one note |
+
+---
+
+## Important Notes
+
+- **Try wiki-search first** — if the topic has a wiki page, you'll save 80% of the tokens
+- **Keppi MCP tools, not bash** — `keppi:keyword_search`, not `keppi search ...`
+- **Obsidian CLI, not cat** — `obsidian read`, not shell file reads
+- **Always `shell: cmd`** — PowerShell silently swallows obsidian CLI output
+- **Cite note titles** in your answer so sources are traceable
