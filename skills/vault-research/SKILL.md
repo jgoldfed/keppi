@@ -59,12 +59,36 @@ Come here when wiki-search sends you — or when you know you need raw source de
 
 ---
 
+## The Karpathy Loop (Deep Research)
+
+Even deep research participates in the promotion cycle. Every fact you assemble from
+raw notes that would answer a future query on its own belongs in the wiki.
+
+```
+1. Check wiki for map of the territory (sources, related pages)
+2. Use Keppi to find entry points and trace connections
+3. Read raw notes to answer the question
+4. Promote key facts back to the wiki
+```
+
+Without step 4, the next researcher re-reads the same 8-16K tokens of raw notes.
+With promotion, the next query resolves at wiki-lane cost (~400 tokens).
+
+| Promote to wiki | Leave in raw notes |
+|---|---|
+| Key facts, figures, pricing, dates | Full meeting transcripts |
+| Status, decisions, outcomes | Detailed context and quotes |
+| Strategy summaries | Step-by-step reasoning |
+| Anything you'll query again | One-time reference material |
+
+---
+
 ## Steps
 
 ### Step 0 — Quick Wiki Check
 
 Even for deep research, check the wiki first. It may have a synthesis that reframes
-what you need from raw notes. Wiki reads are ~400 tokens vs 3,000–8,000 for transcripts.
+what you need from raw notes. Wiki reads are ~400 tokens vs  3,000–8,000 for transcripts.
 
 ```
 Desktop Commander:start_process
@@ -195,26 +219,30 @@ in the wiki, note them — they're candidates for a wiki update.
 
 ---
 
-### Step 6 — Promotion Rule: Close the Wiki Gap
+### Step 6 — Promote Facts to Wiki (MANDATORY)
 
-Deep research often surfaces facts that should live in the wiki, not just in your answer. Every time you had to read 4+ raw notes to assemble an answer, the wiki needs updating.
+Deep research almost always surfaces facts that should live in the wiki. If you
+assembled an answer from multiple raw notes, those facts need a home.
 
-**The rule:** If you assembled facts from multiple raw notes that would have answered the question on their own, promote them. The wiki is a queryable facts layer, not a summary layer.
-
-| Promote to wiki | Leave in raw notes |
-|---|---|
-| Key facts, figures, pricing, dates | Full meeting transcripts |
-| Status, decisions, outcomes | Detailed context and quotes |
-| Strategy summaries | Step-by-step reasoning |
-| Anything you'll query again | One-time reference material |
+**The rule:** If you assembled facts from raw notes that would answer the question on
+their own, promote them. The wiki is a queryable facts layer, not a summary layer.
 
 **How to promote:**
 1. After synthesizing your answer, identify the 1-3 key facts that required raw note reads
-2. Add them as a concise section to the relevant wiki page (e.g., `## Pricing`, `## Key Dates`, `## Status`)
-3. Add a wikilink to each source note: `Source: [[Source Note Name]]`
-4. Result: next query on this topic resolves in a single wiki read (~400 tokens) instead of a full research pass (~8,000–16,000 tokens)
+2. Find (or create) the relevant wiki page in `3-Resources/wiki/entities/` or
+   `3-Resources/wiki/concepts/`
+3. Add a concise section: `## Pricing`, `## Key Dates`, `## Status`, etc.
+4. Add a wikilink to each source note: `Source: [[Source Note Name]]`
+5. Update the `sources:` frontmatter list to include the source note
+6. Set `updated:` frontmatter to today's date
 
-**Example:** A "summarize everything about the Cetera project" query required reading 5 raw meeting notes. The key facts — contract status, deliverables, deadlines — get promoted to the `Cetera` wiki page. Next time, the wiki fast lane answers the factual questions; only deep evidence retrieval needs the research path.
+**Result:** Next query on this topic resolves in a single wiki read (~400 tokens)
+instead of a full research pass (~8,000–16,000 tokens).
+
+**Example:** A "summarize everything about the Cetera project" query required reading
+5 raw meeting notes. The key facts — contract status, deliverables, deadlines — get
+promoted to the `Cetera` wiki page. Next time, the wiki fast lane answers the factual
+questions; only deep evidence retrieval needs the research path.
 
 ---
 
@@ -234,7 +262,7 @@ Desktop Commander:start_process
 | Read note (no spaces)   | `obsidian read file=NoteName`                       |
 | Read note (with spaces) | `obsidian read 'file=Note Name'`                    |
 | Read by exact path      | `obsidian read 'path=1-Projects/DGEA/Note Name.md'` |
-| Search for path         | `obsidian search 'query=Note Title' limit=1`        |
+| Search vault            | `obsidian search 'query=search terms' limit=5`     |
 
 ---
 
@@ -255,20 +283,9 @@ Desktop Commander:start_process
   2,600+ node vault returns 150+ edges (large payload, slow round-trip over MCP).
 - **Keep `keyword_search` limit ≤ 5** — more results = more MCP payload for little gain.
 - **Keep `blast_radius` depth ≤ 2** — depth 3+ fans out to thousands of nodes.
-- **Wiki reads are cheap** — ~400 tokens vs 3,000–8,000 for a raw transcript. Always
+- **Wiki reads are cheap** — ~400 tokens vs. 3,000–8,000 for a raw transcript. Always
   try the wiki fast lane before committing to raw note reads.
 - **context_pack with a tight budget** is better than reading 10 raw notes individually.
-- **Promote key facts after deep research** — if you assembled an answer from 4+ raw notes, add the key facts to the relevant wiki page. Next query resolves at wiki-lane cost (~400 tokens) instead of a full research pass (~8,000–16,000 tokens).
-
----
-
-## Important Notes
-
-- **Try wiki-search first** — if the topic has a wiki page, save 80% of the tokens
-- **Keppi MCP tools, not bash** — `keppi:keyword_search`, not `keppi search ...`
-- **Always `shell: powershell.exe`** — CMD truncates filenames at spaces
-- **Single-quote space-containing args** — `'file=Note Name'` not `file="Note Name"`
-- **read_file is your spacing fallback** — when obsidian-cli chokes, use DC:read_file
-  with the full vault path
-- **context_pack is your no-DC fallback** — synthesize from it directly if no file reads available
-- **Cite note titles** in your answer so sources are traceable
+- **Promote key facts after deep research** — if you assembled an answer from 4+ raw
+  notes, add the key facts to the relevant wiki page. Next query resolves at wiki-lane
+  cost (~400 tokens) instead of a full research pass (~8,000–16,000 tokens).
