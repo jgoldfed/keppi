@@ -203,7 +203,7 @@ def init(
     base.setdefault("vault", {})["path"] = str(vault_path)
     config_file.write_text(_toml.dumps(base), encoding="utf-8")
 
-    console.print(f"[green]Created[/green] ~/.keppi/keppi.toml")
+    console.print("[green]Created[/green] ~/.keppi/keppi.toml")
     console.print(f"[dim]Vault:[/dim] {vault_path}")
 
 
