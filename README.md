@@ -38,25 +38,25 @@ $ keppi stats ~/Documents/Obsidian\ Vault
 ## 60-Second Demo
 
 ```
-# What does a project affect? Data Platform Migration note?
-$ keppi blast-radius "Data Platform Migration" --depth 2
+# What does a relocation affect?
+$ keppi blast-radius "Job Relocation" --depth 2
 
-Blast Radius: Data Platform Migration (depth=2)
-Seed: entities/Data Platform Migration
+Blast Radius: Job Relocation (depth=2)
+Seed: projects/Job Relocation
 
   1. Job Search              relevance=0.89  distance=1
-  2. Cloud Vendor           relevance=0.82  distance=1
-  3. Cloud Analytics             relevance=0.71  distance=1
-  4. Client Contract                 relevance=0.68  distance=1
-  5. Integration Project                 relevance=0.65  distance=1
-  6. Family Plans     relevance=0.61  distance=1
-  7. Career                 relevance=0.58  distance=1
-  8. Compliance                 relevance=0.55  distance=2
-  9. CRM Platform             relevance=0.42  distance=2
+  2. Family Plans            relevance=0.82  distance=1
+  3. Client Contract         relevance=0.71  distance=1
+  4. Career                  relevance=0.68  distance=1
+  5. Vendor Relationships    relevance=0.65  distance=1
+  6. Compliance              relevance=0.61  distance=1
+  7. Cloud Vendor            relevance=0.58  distance=1
+  8. Data Pipeline           relevance=0.55  distance=2
+  9. CRM Platform            relevance=0.42  distance=2
  10. Expertise Reversal      relevance=0.31  distance=2
 ```
 
-That's not search. That's **knowing which notes matter** for a decision you're about to make. A data platform migration affects your client contracts, your compliance requirements, your integration project, and your vendor relationships. All from one query.
+That's not search. That's **knowing which notes matter** for a decision you're about to make. A job relocation affects your family, your client contracts, your vendor relationships, and your career trajectory. All from one query.
 
 ## Where It Extends Karpathy's Vision
 
@@ -80,7 +80,7 @@ The wiki is the *what*. Keppi is the *how everything connects*. Without the grap
 
 | Question | Similarity Search | Graph Traversal |
 |----------|------------------|-----------------|
-| "What does a data platform migration affect?" | Pages containing "migration" or "platform" | Cloud Vendor (contract change) → Compliance (new regulations) → Client Contract (SLA updates) → Integration Project (migration scope) → Data Pipeline (architecture redesign) |
+| "What does a relocation affect?" | Pages containing "relocation" | Job Search → Family Plans → Client Contract → Career → Vendor Relationships |
 | "What's connected to my analytics platform?" | Pages mentioning "analytics" | Data Pipeline (implements it) → Cloud DB (runs on it) → Data Governance (quality rules) → Vendor Alpha (consulting partner) |
 | "What haven't I connected?" | Can't detect | Gaps between clusters, orphan notes |
 
@@ -134,7 +134,7 @@ For other MCP clients (OpenClaw, etc.), use `keppi mcp-server /path/to/vault` an
 **FR-002: `keppi visualize`** — Interactive HTML graph visualization with drag, zoom, and filter. Color-coded by node type, edge-weighted by relationship type.
 
 ```bash
-keppi visualize "Data Platform Migration" --depth 2 --output migration.html --open
+keppi visualize "Job Relocation" --depth 2 --output relocation.html --open
 ```
 
 **FR-003: `keppi connect`** — Auto-generate wikilinks and `related_to` frontmatter from graph analysis. The auto-wiring that makes the graph work for notes that were never written to be graphed.
@@ -175,7 +175,7 @@ keppi build ~/Documents/Obsidian\ Vault
 
 # 3. Explore
 keppi stats ~/Documents/Obsidian\ Vault
-keppi blast-radius "some concept" ~/Documents/Obsidian\ Vault
+keppi blast-radius "Job Relocation" --depth 2
 ```
 
 **Windows:** Set `PYTHONUTF8=1` in your environment or prefix commands:
