@@ -7,6 +7,81 @@ from pathlib import Path
 
 import networkx as nx
 
+# Module-level cache for sqlite-vec extension load attempts.
+# None = not attempted, True = loaded successfully, False = unavailable.
+# Avoids repeatedly attempting to load a shared library that doesn't exist.
+_VEC_LOAD_STATE: bool | None = None
+
+
+def _try_load_vec(conn: sqlite3.Connection) -> bool:
+    """Attempt to load sqlite-vec extension. Caches result globally."""
+    global _VEC_LOAD_STATE
+    if _VEC_LOAD_STATE is False:
+        return False
+    try:
+        conn.enable_load_extension(True)
+        import sqlite_vec
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
+        _VEC_LOAD_STATE = True
+        return True
+    except Exception:
+        _VEC_LOAD_STATE = False
+        return False
+
+
+def ensure_vec_table(conn: sqlite3.Connection, dimension: int) -> bool:
+    """
+    Create vec_embeddings virtual table with given dimension if it doesn't exist.
+    Returns True if table is ready, False if sqlite-vec is not available.
+
+    If stored dimension in meta differs from requested dimension:
+    - Set meta['embed_needs_rebuild'] = '1' FIRST (so a crash here is recoverable —
+      the next call will see the flag and rebuild)
+    - Drop and recreate vec_embeddings with new dimension
+    - Print warning to stderr
+
+    Crash recovery: if the process is killed between the DROP and the CREATE,
+    the next ensure_vec_table call recreates the table from scratch and
+    embed_all_notes sees the rebuild flag and re-embeds everything.
+    """
+    try:
+        stored = conn.execute(
+            "SELECT value FROM meta WHERE key='embed_dimension'"
+        ).fetchone()
+
+        if stored and int(stored["value"]) != dimension:
+            import sys
+            print(
+                f"[keppi] WARNING: Embedding dimension changed "
+                f"({stored['value']} → {dimension}). "
+                f"Dropping and rebuilding vec_embeddings table.",
+                file=sys.stderr,
+            )
+            # Set rebuild flag BEFORE drop — crash recovery
+            conn.execute(
+                "INSERT OR REPLACE INTO meta (key, value) "
+                "VALUES ('embed_needs_rebuild', '1')"
+            )
+            conn.commit()
+            conn.execute("DROP TABLE IF EXISTS vec_embeddings")
+
+        conn.execute(
+            f"""CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(
+                path TEXT PRIMARY KEY,
+                embedding float[{dimension}]
+            )"""
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO meta (key, value) "
+            "VALUES ('embed_dimension', ?)",
+            (str(dimension),),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        return False  # sqlite-vec not installed or vec0 unavailable
+
 _SCHEMA = """
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
@@ -44,11 +119,21 @@ CREATE INDEX IF NOT EXISTS idx_nodes_title ON nodes(title);
 """
 
 
-def open_db(db_path: Path) -> sqlite3.Connection:
-    """Open (or create) a SQLite database with WAL mode."""
+def open_db(db_path: Path, enable_vec: bool = True) -> sqlite3.Connection:
+    """Open (or create) a SQLite database with WAL mode.
+
+    enable_vec=False only prevents the initial extension load attempt for
+    this connection. If sqlite-vec was already loaded into another connection
+    in the same process, _VEC_LOAD_STATE remains True — vec0 tables remain
+    usable globally. This is the correct semantics for a per-connection flag.
+    """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
+
+    if enable_vec:
+        _try_load_vec(conn)  # cached — only attempts shared library load once
+
     conn.executescript(_SCHEMA)
     conn.commit()
     return conn

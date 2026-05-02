@@ -5,12 +5,10 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from keppi.graph.builder import GraphBuilder
-from keppi.graph.storage import open_db, save_graph, load_graph
+from keppi.graph.storage import open_db, save_graph
 from keppi.parser.config import Config
-from keppi.parser.markdown import parse_note, collect_markdown_files
+from keppi.parser.markdown import collect_markdown_files, parse_note
 
 VAULT = Path(__file__).parent / "fixtures" / "demo_vault"
 
@@ -148,7 +146,8 @@ class TestDriftDetection:
 
     def test_drift_no_future_dates(self):
         from datetime import date
-        from keppi.analysis.drift import detect_drift, _parse_date
+
+        from keppi.analysis.drift import _parse_date, detect_drift
         results = detect_drift(self.graph, stale_days=30, recent_days=14)
         for r in results:
             if r.last_updated not in ("unknown", ""):

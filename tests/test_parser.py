@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-import pytest
-
-from keppi.parser.markdown import parse_note, collect_markdown_files
+from keppi.parser.markdown import collect_markdown_files, parse_note
 
 VAULT = Path(__file__).parent / "fixtures" / "demo_vault"
 

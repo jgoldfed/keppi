@@ -4,21 +4,35 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import os
 import sys
 from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.console import Console
-from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.table import Table
+
+from keppi.parser.config import DEFAULT_CONFIG_TOML, Config, _find_config, load_config
+
+_log = logging.getLogger("keppi.embed")
+if os.environ.get("KEPPI_DEBUG") == "1":
+    logging.basicConfig(level=logging.DEBUG)
 
 try:
     import toml as _toml
 except ImportError:
     _toml = None  # type: ignore[assignment]
-
-from keppi.parser.config import DEFAULT_CONFIG_TOML, Config, _find_config, load_config
 
 app = typer.Typer(
     name="keppi",
@@ -143,6 +157,39 @@ def _install_cursor(vault_path: Path) -> None:
     console.print(f"[green]Configured Cursor[/green] → {config_file}")
 
 
+def _run_auto_embed(conn, config, vault_path, console, label: str = "") -> None:
+    """Run embedding pass silently after build or watch. Fails gracefully.
+
+    Failures log at DEBUG level (set KEPPI_DEBUG=1 to see them) but never
+    propagate — auto-embed must not break build or watch.
+    """
+    try:
+        from keppi.graph.builder import embed_all_notes
+        from keppi.graph.storage import ensure_vec_table
+        from keppi.search.providers import get_provider
+
+        if not ensure_vec_table(conn, config.embed.dimension):
+            _log.debug("auto-embed skipped: sqlite-vec unavailable")
+            return
+
+        provider = get_provider(config)
+        result = embed_all_notes(conn, provider, vault_path)
+
+        if result["embedded"] > 0:
+            console.print(
+                f"[dim]  ↳ Embedded {result['embedded']} notes"
+                + (f" ({result['errors']} errors)" if result["errors"] else "")
+                + "[/dim]"
+            )
+        if result["errors"] > 0:
+            console.print(
+                f"[yellow]  ↳ {result['errors']} embedding errors "
+                f"(run 'keppi embed' to retry)[/yellow]"
+            )
+    except Exception as e:
+        _log.debug("auto-embed failed (%s): %s", label, e, exc_info=True)
+
+
 def _suggest_similar(graph, query: str) -> None:
     """Print up to 5 notes with titles containing the query words."""
     words = query.lower().split()
@@ -256,13 +303,17 @@ def build(
     with console.status("Saving graph…"):
         conn = open_db(db_path)
         save_graph(conn, builder.graph, str(vault_root))
-        conn.close()
 
     node_count = sum(1 for n in builder.graph.nodes if not str(n).startswith("__broken__"))
     edge_count = builder.graph.number_of_edges()
     console.print(
         f"[green]Built[/green] {node_count} notes, {edge_count:,} edges → {db_path}"
     )
+
+    if config.embed.auto_embed:
+        _run_auto_embed(conn, config, vault_path, console, label="build")
+
+    conn.close()
 
 
 @app.command()
@@ -489,6 +540,213 @@ def search(
         except Exception:
             tags = []
         table.add_row(r.title, f"{r.score:.1f}", ", ".join(tags[:5]))
+
+    console.print(table)
+
+    # Tip: show semantic search hint if embeddings exist
+    try:
+        count = conn.execute("SELECT COUNT(*) as c FROM vec_embeddings").fetchone()["c"]
+        if count > 0:
+            console.print(
+                f"[dim]Tip: keppi semantic-search '{query}' for meaning-based results[/dim]"
+            )
+    except Exception:
+        pass
+
+    conn.close()
+
+
+@app.command()
+def embed(
+    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    force: bool = typer.Option(False, "--force", help="Re-embed all notes, ignoring existing embeddings"),
+) -> None:
+    """Build semantic embeddings for all notes in the vault."""
+    from keppi.graph.builder import embed_all_notes
+    from keppi.graph.storage import ensure_vec_table, open_db
+    from keppi.search.providers import get_provider
+
+    vault_path = Path(vault).resolve() if vault else Path.cwd()
+    config = load_config(vault_path)
+    config.vault.path = str(vault_path)
+
+    db_path = _get_db_path(config)
+    if not db_path.exists():
+        console.print(f"[red]No graph found.[/red] Run: keppi build {vault_path}")
+        raise typer.Exit(1)
+
+    conn = open_db(db_path)
+
+    if not ensure_vec_table(conn, config.embed.dimension):
+        console.print(
+            "[red]sqlite-vec not available.[/red] "
+            "Install it: pip install sqlite-vec"
+        )
+        conn.close()
+        raise typer.Exit(1)
+
+    # Warn if a dimension rebuild is pending
+    try:
+        rebuild_flag = conn.execute(
+            "SELECT value FROM meta WHERE key='embed_needs_rebuild'"
+        ).fetchone()
+        if rebuild_flag and rebuild_flag["value"] == "1":
+            console.print(
+                "[yellow]Warning: dimension change detected — full rebuild required.[/yellow]"
+            )
+    except Exception:
+        pass
+
+    try:
+        provider = get_provider(config)
+    except Exception as e:
+        console.print(f"[red]Provider error:[/red] {e}")
+        conn.close()
+        raise typer.Exit(1)
+
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TextColumn("•"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Embedding notes", total=None)
+
+        def cb(current: int, total: int, title: str) -> None:
+            progress.update(
+                task,
+                total=total,
+                completed=current,
+                description=f"Embedding: {title[:40]}",
+            )
+
+        try:
+            result = embed_all_notes(conn, provider, vault_path, force=force, progress_callback=cb)
+        except RuntimeError as e:
+            err = str(e)
+            if "Ollama" in err or "localhost:11434" in err:
+                url = config.embed.base_url or "http://localhost:11434"
+                console.print(f"[red]Could not reach Ollama at {url}[/red]")
+                console.print("Run: ollama serve")
+            else:
+                console.print(f"[red]Embedding error:[/red] {e}")
+                if config.embed.provider == "openai":
+                    console.print(f"Check your {config.embed.api_key_env} env var")
+            conn.close()
+            raise typer.Exit(1)
+
+    table = Table(title="Embed results")
+    table.add_column("Result", style="bold")
+    table.add_column("Count", justify="right")
+    table.add_row("Embedded", str(result["embedded"]))
+    table.add_row("Skipped", str(result["skipped"]))
+    table.add_row("Errors", str(result["errors"]))
+    console.print(table)
+
+    if result["errors"] > 0:
+        console.print(
+            f"[yellow]{result['errors']} errors — run with KEPPI_DEBUG=1 for details[/yellow]"
+        )
+
+    conn.close()
+
+
+@app.command(name="semantic-search")
+def semantic_search(
+    query: str = typer.Argument(..., help="Natural language search query"),
+    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    limit: int = typer.Option(10, "--limit", "-n", help="Maximum results"),
+    wiki_only: bool = typer.Option(False, "--wiki-only", help="Restrict to 3-Resources/wiki/"),
+) -> None:
+    """Semantic vector search — finds notes by meaning, not just keywords."""
+    from keppi.graph.storage import ensure_vec_table, open_db
+    from keppi.search.providers import get_provider
+    from keppi.search.semantic import semantic_search as _search
+
+    vault_path = Path(vault).resolve() if vault else Path.cwd()
+    config = load_config(vault_path)
+    config.vault.path = str(vault_path)
+
+    db_path = _get_db_path(config)
+    if not db_path.exists():
+        console.print(f"[red]No graph found.[/red] Run: keppi build {vault_path}")
+        raise typer.Exit(1)
+
+    conn = open_db(db_path)
+
+    if not ensure_vec_table(conn, config.embed.dimension):
+        console.print(
+            "[red]sqlite-vec not available.[/red] "
+            "Install it: pip install sqlite-vec"
+        )
+        conn.close()
+        raise typer.Exit(1)
+
+    # Check that embeddings exist
+    try:
+        count = conn.execute("SELECT COUNT(*) as c FROM vec_embeddings").fetchone()["c"]
+        if count == 0:
+            console.print(
+                f"[yellow]No embeddings found.[/yellow] "
+                f"Run: keppi embed {vault_path}"
+            )
+            conn.close()
+            raise typer.Exit(1)
+    except Exception:
+        console.print(f"[yellow]No embeddings found.[/yellow] Run: keppi embed {vault_path}")
+        conn.close()
+        raise typer.Exit(1)
+
+    try:
+        provider = get_provider(config)
+    except Exception as e:
+        console.print(f"[red]Provider error:[/red] {e}")
+        conn.close()
+        raise typer.Exit(1)
+
+    path_prefix = "3-Resources/wiki/" if wiki_only else None
+
+    try:
+        results = _search(conn, query, provider, limit=limit, path_prefix=path_prefix)
+    except RuntimeError as e:
+        err = str(e)
+        if "Ollama" in err or "localhost:11434" in err:
+            url = config.embed.base_url or "http://localhost:11434"
+            console.print(f"[red]Could not reach Ollama at {url}[/red]")
+            console.print("Run: ollama serve")
+        else:
+            console.print(f"[red]Provider error:[/red] {e}")
+            if config.embed.provider == "openai":
+                console.print(f"Check your {config.embed.api_key_env} env var")
+        conn.close()
+        raise typer.Exit(1)
+
+    if not results:
+        console.print(
+            f"[yellow]No results.[/yellow] "
+            f"Run: keppi embed {vault_path} to build embeddings first."
+        )
+        conn.close()
+        return
+
+    table = Table(title=f"Semantic search: {query}")
+    table.add_column("Distance", justify="right")
+    table.add_column("Strength")
+    table.add_column("Title", style="bold")
+    table.add_column("Path")
+
+    for r in results:
+        dist = round(r.distance, 4)
+        if r.distance < 0.3:
+            dist_str = f"[green]{dist}[/green]"
+        elif r.distance < 0.5:
+            dist_str = f"[yellow]{dist}[/yellow]"
+        else:
+            dist_str = f"[red]{dist}[/red]"
+        path_display = r.path if len(r.path) <= 55 else "..." + r.path[-52:]
+        table.add_row(dist_str, r.match_context.replace(" match", ""), r.title, path_display)
 
     console.print(table)
     conn.close()

@@ -5,13 +5,11 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from keppi.analysis.blast_radius import compute_blast_radius, find_node_by_title
 from keppi.graph.builder import GraphBuilder
-from keppi.graph.storage import open_db, save_graph, load_graph
+from keppi.graph.storage import open_db, save_graph
 from keppi.parser.config import Config
-from keppi.parser.markdown import parse_note, collect_markdown_files
+from keppi.parser.markdown import collect_markdown_files, parse_note
 from keppi.search.keyword import keyword_search
 
 VAULT = Path(__file__).parent / "fixtures" / "demo_vault"
