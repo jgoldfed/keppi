@@ -258,4 +258,12 @@ cache_max_age_days = 30
 enabled = true
 debounce_ms = 2000
 ignore_patterns = [".obsidian/*"]
+
+[embed]
+provider = "ollama"
+model = "nomic-embed-text"
+dimension = 768
+api_key_env = ""
+base_url = ""
+auto_embed = true
 """
