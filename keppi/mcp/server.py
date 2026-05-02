@@ -356,19 +356,31 @@ def semantic_search(
     except Exception as e:
         return {"error": f"Semantic search failed: {e}"}
 
+    result_list = [
+        {
+            "path": r.path,
+            "title": r.title,
+            "distance": round(r.distance, 4),
+            "match_strength": r.match_context,
+        }
+        for r in results
+    ]
+
+    hint = None
+    if wiki_only and len(results) > 0:
+        hint = (
+            "If these results answered your question, promote key facts "
+            "to the relevant wiki page with source citations. "
+            "This reduces future token cost and makes the answer "
+            "available via wiki_only=True in one call."
+        )
+
     return {
         "count": len(results),
         "query": query,
         "scope": prefix or "full vault",
-        "results": [
-            {
-                "path": r.path,
-                "title": r.title,
-                "distance": round(r.distance, 4),
-                "match_strength": r.match_context,
-            }
-            for r in results
-        ],
+        "results": result_list,
+        **({"hint": hint} if hint else {}),
     }
 
 
