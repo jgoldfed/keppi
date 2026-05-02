@@ -162,6 +162,9 @@ def _run_auto_embed(conn, config, vault_path, console, label: str = "") -> None:
 
     Failures log at DEBUG level (set KEPPI_DEBUG=1 to see them) but never
     propagate — auto-embed must not break build or watch.
+
+    Skips auto-embed on first build (0% coverage) — it would hang for minutes.
+    User should run 'keppi embed' explicitly for initial indexing.
     """
     try:
         from keppi.graph.builder import embed_all_notes
@@ -170,6 +173,21 @@ def _run_auto_embed(conn, config, vault_path, console, label: str = "") -> None:
 
         if not ensure_vec_table(conn, config.embed.dimension):
             _log.debug("auto-embed skipped: sqlite-vec unavailable")
+            return
+
+        # Skip auto-embed on first build (0% coverage) — it would hang for
+        # minutes. User should run 'keppi embed' explicitly for initial indexing.
+        try:
+            total = conn.execute("SELECT COUNT(*) as c FROM nodes").fetchone()["c"]
+            existing = conn.execute("SELECT COUNT(*) as c FROM vec_embeddings").fetchone()["c"]
+        except Exception:
+            existing = 0
+            total = 0
+        if total > 0 and existing == 0:
+            console.print(
+                f"[dim]  ↳ Semantic search not yet indexed. "
+                f"Run [bold]keppi embed {vault_path}[/bold] to enable it.[/dim]"
+            )
             return
 
         provider = get_provider(config)
@@ -310,8 +328,24 @@ def build(
         f"[green]Built[/green] {node_count} notes, {edge_count:,} edges → {db_path}"
     )
 
+    # Check if embeddings exist and hint if not
     if config.embed.auto_embed:
-        _run_auto_embed(conn, config, vault_path, console, label="build")
+        try:
+            from keppi.graph.storage import ensure_vec_table
+            if ensure_vec_table(conn, config.embed.dimension):
+                existing = conn.execute("SELECT COUNT(*) as c FROM vec_embeddings").fetchone()["c"]
+                if existing == 0:
+                    console.print(
+                        f"[dim]  ↳ Semantic search not yet indexed. "
+                        f"Run [bold]keppi embed {vault_path}[/bold] to enable it.[/dim]"
+                    )
+        except Exception:
+            pass
+
+    # Auto-embed is intentionally NOT run after `keppi build`. Full embed
+    # can take 30+ minutes with Ollama on a large vault. Users should run
+    # `keppi embed` explicitly. Auto-embed only fires on file watcher events
+    # (incremental, one note at a time) which are fast.
 
     conn.close()
 
