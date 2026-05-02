@@ -6,12 +6,10 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from keppi.graph.builder import GraphBuilder
 from keppi.graph.storage import open_db, save_graph
 from keppi.parser.config import Config
-from keppi.parser.markdown import parse_note, collect_markdown_files
+from keppi.parser.markdown import collect_markdown_files, parse_note
 
 VAULT = Path(__file__).parent / "fixtures" / "demo_vault"
 
