@@ -1,4 +1,4 @@
-# Keppi — README Draft (Public Launch)
+# Keppi — README
 
 > **Knowledge Engine for Precise Pattern Intelligence**
 > 
