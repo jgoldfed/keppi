@@ -351,3 +351,61 @@ This is the feature that bridges Karpathy's LLM wiki pattern (which assumes you'
 - [ ] `--undo` restores from backup
 - [ ] MCP tool `suggest_connections` available with `auto_apply` flag
 - [ ] Works on vaults with zero existing connections (the "pasted slop" scenario)
+---
+
+## FR-004: embed_exclude_dirs — Privacy-Aware Embedding Exclusions
+
+**Priority:** Medium | **Status:** Open
+
+### Problem
+
+When using a cloud embedding provider (OpenAI), `keppi embed` sends the full
+text of every note to the provider's API. Notes containing secrets — API keys,
+passwords, tokens, credentials — are transmitted to a third party.
+
+Currently, `exclude_dirs` in `[vault]` removes folders from the graph entirely
+(keyword search, blast radius, etc.). There is no way to keep sensitive folders
+in the graph for structural queries while excluding them from embedding.
+
+### Solution
+
+Add `embed_exclude_dirs` to `[embed]` config:
+
+```toml
+[embed]
+provider = "ollama"
+model = "nomic-embed-text"
+dimension = 768
+api_key_env = ""
+base_url = ""
+auto_embed = true
+embed_exclude_dirs = ["2-Areas/Secrets", "1-Projects/Secrets"]
+```
+
+### Behavior
+
+- Notes in `embed_exclude_dirs` are kept in the graph (keyword search,
+  blast radius, communities all still work)
+- But they are skipped during embedding — no text sent to the embedding provider
+- If a note in an excluded dir already has embeddings (from a previous run),
+  those embeddings are deleted on next `keppi embed`
+- `semantic_search` gracefully skips notes without embeddings
+- The file watcher respects this too — changes in excluded dirs update the
+  graph but do not trigger embedding
+
+### Why Not Just Use exclude_dirs?
+
+`exclude_dirs` removes notes from the graph entirely. For secrets, you still
+want graph queries to work ("show me everything connected to the IceCap
+project") — you just don't want the actual secret text sent to OpenAI.
+`embed_exclude_dirs` gives you that separation.
+
+### Implementation Notes
+
+- Add `embed_exclude_dirs: list[str]` to `EmbedConfig` dataclass
+- Parse from `[embed]` section in `_parse_config_file()`
+- In `embed_all_notes()`, skip notes whose path starts with an
+  `embed_exclude_dirs` prefix
+- In file watcher auto-embed hook, check path against `embed_exclude_dirs`
+- On `keppi embed`, delete existing embeddings for notes in newly-excluded dirs
+- Default value: empty list (no folders excluded)
