@@ -56,9 +56,14 @@ def semantic_search(
     path_prefix: Optional[str] = None,
 ) -> list[SemanticResult]:
     """
-    KNN semantic search. Returns [] gracefully if vec_embeddings does not exist
-    or any provider failure occurs. path_prefix restricts results to notes whose
-    path starts with this string.
+    KNN semantic search with per-note deduplication. Returns [] gracefully if
+    vec_embeddings does not exist or any provider failure occurs.
+
+    Chunk keys have the form "path::N". Multiple chunks from the same note are
+    deduplicated by keeping the lowest distance. Old-format keys without ::N
+    are handled transparently (treated as the full note path).
+
+    path_prefix restricts results to notes whose path starts with this string.
     """
     from keppi.search.providers import serialize_vector
 
@@ -66,43 +71,53 @@ def semantic_search(
         query_vec = provider.embed(query)
         query_bytes = serialize_vector(query_vec)
 
-        if path_prefix:
-            rows = conn.execute(
-                """
-                SELECT v.path, n.title, v.distance
-                FROM vec_embeddings v
-                JOIN nodes n ON v.path = n.path
-                WHERE v.embedding MATCH ? AND k = ?
-                  AND n.path LIKE ?
-                ORDER BY v.distance
-                """,
-                (query_bytes, limit, path_prefix + "%"),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                """
-                SELECT v.path, n.title, v.distance
-                FROM vec_embeddings v
-                JOIN nodes n ON v.path = n.path
-                WHERE v.embedding MATCH ? AND k = ?
-                ORDER BY v.distance
-                """,
-                (query_bytes, limit),
-            ).fetchall()
+        # Request more results than needed to compensate for deduplication loss
+        raw_rows = conn.execute(
+            """
+            SELECT v.path, v.distance
+            FROM vec_embeddings v
+            WHERE v.embedding MATCH ? AND k = ?
+            ORDER BY v.distance
+            """,
+            (query_bytes, limit * 3),
+        ).fetchall()
 
-        return [
-            SemanticResult(
-                path=r["path"],
-                title=r["title"] or r["path"],
-                distance=r["distance"],
+        # Deduplicate by note path (strip ::N suffix), keeping lowest distance
+        seen: dict[str, float] = {}
+        for row in raw_rows:
+            chunk_path = row["path"]
+            sep = chunk_path.find("::")
+            note_path = chunk_path[:sep] if sep != -1 else chunk_path
+
+            if path_prefix and not note_path.startswith(path_prefix):
+                continue
+
+            dist = row["distance"]
+            if note_path not in seen or dist < seen[note_path]:
+                seen[note_path] = dist
+
+        # Sort by distance, truncate to limit, then fetch titles
+        sorted_notes = sorted(seen.items(), key=lambda x: x[1])[:limit]
+
+        results = []
+        for note_path, distance in sorted_notes:
+            title_row = conn.execute(
+                "SELECT title FROM nodes WHERE path = ?", (note_path,)
+            ).fetchone()
+            title = (title_row["title"] if title_row else None) or note_path
+            results.append(SemanticResult(
+                path=note_path,
+                title=title,
+                distance=distance,
                 match_context=(
-                    "strong match" if r["distance"] < 0.3 else
-                    "moderate match" if r["distance"] < 0.5 else
+                    "strong match" if distance < 0.3 else
+                    "moderate match" if distance < 0.5 else
                     "weak match"
                 ),
-            )
-            for r in rows
-        ]
+            ))
+
+        return results
+
     except sqlite3.OperationalError:
         return []  # vec_embeddings table doesn't exist yet
     except Exception:

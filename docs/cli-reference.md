@@ -172,6 +172,54 @@ Keyword search. Scores: title match (+3), tag match (+2), heading match (+1.5), 
 keppi search "data quality" --limit 10
 ```
 
+### `keppi embed [vault] [--force]`
+Build or refresh the vector embedding index for semantic search.
+
+- Long notes are split into overlapping 8 000-char chunks (200-char overlap) — each chunk gets its own embedding. Short notes (≤ 8 000 chars) produce a single chunk. No content is truncated.
+- `--force` — Re-embed all notes, replacing existing embeddings
+
+Requires `keppi[embeddings]` install and a running provider (Ollama or OpenAI key).
+
+```bash
+keppi embed                    # Embed new/unembedded notes
+keppi embed --force            # Full rebuild (use after changing models)
+```
+
+**Output:**
+
+```
+┌─────────┬───────┐
+│ Result  │ Count │
+├─────────┼───────┤
+│ Embedded│   847 │
+│ Chunks  │   921 │  ← ≥ Embedded (long notes produce multiple chunks)
+│ Skipped │   636 │
+│ Errors  │     0 │
+└─────────┴───────┘
+```
+
+### `keppi semantic-search <query> [vault] [--limit N] [--wiki-only]`
+Meaning-based vector search. Finds conceptually related notes even when exact keywords don't match. Results are deduplicated per note — a single note appears at most once, at its best-matching chunk distance.
+
+- `--limit` (default 10) — Maximum results
+- `--wiki-only` — Restrict to `3-Resources/wiki/`
+
+Requires embeddings to be built (`keppi embed`).
+
+```bash
+keppi semantic-search "consequences of leaving a job"
+keppi semantic-search "data quality patterns" --wiki-only
+keppi semantic-search "career planning" --limit 20
+```
+
+**Distance interpretation:**
+
+| Distance | Color  | Signal |
+|----------|--------|--------|
+| < 0.3    | green  | Strong match — high confidence |
+| 0.3–0.5  | yellow | Moderate — worth reading |
+| > 0.5    | red    | Weak — topic may be thin in vault |
+
 ### `keppi broken-links [vault] [--top N]`
 List broken wikilinks (targets that don't exist).
 

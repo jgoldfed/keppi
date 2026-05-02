@@ -641,6 +641,7 @@ def embed(
     table.add_column("Result", style="bold")
     table.add_column("Count", justify="right")
     table.add_row("Embedded", str(result["embedded"]))
+    table.add_row("Chunks", str(result.get("chunks", 0)))
     table.add_row("Skipped", str(result["skipped"]))
     table.add_row("Errors", str(result["errors"]))
     console.print(table)

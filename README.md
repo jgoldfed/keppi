@@ -126,7 +126,7 @@ The wiki is the *what*. Keppi is the *how everything connects*. Without the grap
 |---------|-------------|--------------------|
 | `keppi search` | Keyword search across title, tags, headings, body | `keppi search "databricks"` → matching notes ranked by relevance |
 | `keppi semantic-search` | Meaning-based vector search using embeddings | `keppi semantic-search "consequences of leaving a job"` → notes ranked by semantic distance |
-| `keppi embed` | Build or refresh the vector embedding index | `keppi embed --force` → embeds all notes with a progress bar |
+| `keppi embed` | Build or refresh the vector embedding index | `keppi embed --force` → chunks and embeds all notes with a progress bar; shows Embedded / Chunks / Skipped / Errors |
 | `keppi broken-links` | List all broken wikilinks | `keppi broken-links` → `Source → Missing target` for every broken link |
 | `keppi suggest-links` | Suggest missing connections based on content overlap | `keppi suggest-links "Project Alpha"` → notes that should link but don't |
 
@@ -194,8 +194,8 @@ For other MCP clients, use `keppi mcp-server /path/to/vault` and configure manua
 
 | Tool | What it does |
 |------|-------------|
-| `semantic_search` | Vector KNN search by meaning. Supports `wiki_only=True` to scope results to `3-Resources/wiki/`. Returns path, title, and distance. |
-| `get_embed_status` | Returns embedding coverage %, `ready_for_semantic_search` bool, and action guidance for the AI assistant. |
+| `semantic_search` | Vector KNN search by meaning. Supports `wiki_only=True` to scope results to `3-Resources/wiki/`. Returns deduplicated note-level results (best chunk per note) with path, title, and distance. |
+| `get_embed_status` | Returns embedding coverage %, `total_chunks`, `ready_for_semantic_search` bool, and action guidance for the AI assistant. |
 
 ### Agent Skills
 
@@ -310,7 +310,7 @@ Blast radius uses BFS with relevance decay: `relevance = parent_relevance × edg
 
 ### Semantic Search
 
-Embeddings are generated from the full note body (frontmatter stripped) and stored in a `vec_embeddings` table in the SQLite DB using `sqlite-vec`. KNN search runs directly in SQLite — no separate vector store, no network calls at query time. The graph DB and vector index are always co-located.
+Embeddings are generated from the full note body (frontmatter stripped). Long notes are split into overlapping 8 000-char chunks (200-char overlap), each stored as its own embedding. Search returns the best-matching chunk per note, deduplicated — so a 50 000-char meeting transcript is fully indexed, not truncated. Everything is stored in the same SQLite DB using `sqlite-vec` — no separate vector store, no network calls at query time.
 
 ### Context Packs
 

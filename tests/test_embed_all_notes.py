@@ -64,6 +64,13 @@ class TestReadNoteBody:
         result = _read_note_body(tmp_path, "note.md")
         assert result == "Just plain content."
 
+    def test_returns_full_text_without_truncation(self, tmp_path):
+        note = tmp_path / "note.md"
+        long_text = "x" * 10000
+        note.write_text(long_text, encoding="utf-8")
+        result = _read_note_body(tmp_path, "note.md")
+        assert len(result) == 10000
+
 
 class TestEmbedAllNotes:
     def test_reads_body_from_disk(self, tmp_path):
@@ -195,3 +202,79 @@ class TestEmbedAllNotes:
         # Flag should be cleared
         row = conn.execute("SELECT value FROM meta WHERE key='embed_needs_rebuild'").fetchone()
         assert row is None
+
+    def test_short_note_gets_single_chunk_key(self, tmp_path):
+        """A note under CHUNK_SIZE chars produces exactly one row with ::0 key."""
+        conn = _make_conn()
+        conn.execute("INSERT INTO nodes (path, title, headings) VALUES (?, ?, ?)",
+                     ("note.md", "Short Note", "[]"))
+        conn.commit()
+        (tmp_path / "note.md").write_text("Short content", encoding="utf-8")
+
+        provider = _make_provider()
+        result = embed_all_notes(conn, provider, tmp_path)
+
+        rows = conn.execute("SELECT path FROM vec_embeddings").fetchall()
+        assert len(rows) == 1
+        assert rows[0]["path"] == "note.md::0"
+        assert result["chunks"] == 1
+
+    def test_long_note_produces_multiple_chunks(self, tmp_path):
+        """A note over CHUNK_SIZE chars produces multiple vec_embeddings rows."""
+        conn = _make_conn()
+        conn.execute("INSERT INTO nodes (path, title, headings) VALUES (?, ?, ?)",
+                     ("note.md", "Long Note", "[]"))
+        conn.commit()
+
+        long_text = "word " * 2000  # ~10000 chars, more than CHUNK_SIZE=8000
+        (tmp_path / "note.md").write_text(long_text, encoding="utf-8")
+
+        provider = _make_provider()
+        result = embed_all_notes(conn, provider, tmp_path)
+
+        assert result["embedded"] == 1
+        rows = conn.execute(
+            "SELECT path FROM vec_embeddings ORDER BY path"
+        ).fetchall()
+        paths = [r["path"] for r in rows]
+        assert "note.md::0" in paths
+        assert "note.md::1" in paths
+        assert result["chunks"] >= 2
+
+    def test_old_format_key_is_skipped(self, tmp_path):
+        """Old-format embeddings (no ::N) cause the note to be skipped."""
+        conn = _make_conn()
+        conn.execute("INSERT INTO nodes (path, title, headings) VALUES (?, ?, ?)",
+                     ("note.md", "Note", "[]"))
+        conn.execute("INSERT INTO vec_embeddings (path, embedding) VALUES (?, ?)",
+                     ("note.md", b"\x00" * 16))
+        conn.commit()
+
+        provider = _make_provider()
+        result = embed_all_notes(conn, provider, tmp_path, force=False)
+
+        assert result["skipped"] == 1
+        assert result["embedded"] == 0
+        provider.embed.assert_not_called()
+
+    def test_reembed_cleans_up_old_chunks(self, tmp_path):
+        """force=True replaces stale chunks and doesn't leave orphan rows."""
+        conn = _make_conn()
+        (tmp_path / "note.md").write_text("Short content", encoding="utf-8")
+        conn.execute("INSERT INTO nodes (path, title, headings) VALUES (?, ?, ?)",
+                     ("note.md", "Note", "[]"))
+        # Pre-populate with two chunks (as if a longer version was previously embedded)
+        conn.execute("INSERT INTO vec_embeddings (path, embedding) VALUES (?, ?)",
+                     ("note.md::0", b"\x00" * 16))
+        conn.execute("INSERT INTO vec_embeddings (path, embedding) VALUES (?, ?)",
+                     ("note.md::1", b"\x00" * 16))
+        conn.commit()
+
+        provider = _make_provider()
+        result = embed_all_notes(conn, provider, tmp_path, force=True)
+
+        assert result["embedded"] == 1
+        rows = conn.execute("SELECT path FROM vec_embeddings").fetchall()
+        paths = [r["path"] for r in rows]
+        # The old ::1 row should be gone; only ::0 remains for the short note
+        assert paths == ["note.md::0"]

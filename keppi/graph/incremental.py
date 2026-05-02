@@ -77,9 +77,12 @@ def incremental_update(
             counts["deleted"] += 1
             graph.remove_node(rel_path) if graph.has_node(rel_path) else None
             delete_node(conn, rel_path)
-            # Remove embedding for deleted note (non-blocking)
+            # Remove all chunks for deleted note (non-blocking)
             try:
-                conn.execute("DELETE FROM vec_embeddings WHERE path = ?", (rel_path,))
+                conn.execute(
+                    "DELETE FROM vec_embeddings WHERE path = ? OR path LIKE ?",
+                    (rel_path, rel_path + "::%"),
+                )
                 conn.commit()
             except Exception:
                 pass
@@ -100,7 +103,7 @@ def incremental_update(
         # Auto-embed on note create/update (non-blocking)
         if config.embed.auto_embed:
             try:
-                from keppi.graph.builder import _read_note_body
+                from keppi.graph.builder import _read_note_body, chunk_text
                 from keppi.graph.storage import ensure_vec_table
                 from keppi.search.providers import get_provider
                 from keppi.search.semantic import embed_and_store
@@ -108,10 +111,19 @@ def incremental_update(
                 if ensure_vec_table(conn, config.embed.dimension):
                     text = _read_note_body(vault_root, note.path)
                     if not text:
-                        # Fall back to title only if file is unreadable/empty
                         text = node_data.get("title", note.path)
                     provider = get_provider(config)
-                    embed_and_store(conn, note.path, text, provider)
+                    # Delete old chunks before re-embedding
+                    conn.execute(
+                        "DELETE FROM vec_embeddings WHERE path = ? OR path LIKE ?",
+                        (note.path, note.path + "::%"),
+                    )
+                    conn.commit()
+                    for ci, chunk in enumerate(chunk_text(text)):
+                        try:
+                            embed_and_store(conn, f"{note.path}::{ci}", chunk, provider)
+                        except Exception:
+                            pass
             except Exception as e:
                 import logging
                 logging.getLogger("keppi.embed").debug(

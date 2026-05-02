@@ -387,8 +387,14 @@ def get_embed_status(vault_path: str = ".") -> dict[str, Any]:
     total = conn.execute("SELECT COUNT(*) as c FROM nodes").fetchone()["c"]
 
     try:
-        embedded = conn.execute(
+        total_chunks = conn.execute(
             "SELECT COUNT(*) as c FROM vec_embeddings"
+        ).fetchone()["c"]
+        # Count unique notes by stripping ::N chunk suffix
+        embedded = conn.execute(
+            "SELECT COUNT(DISTINCT CASE WHEN INSTR(path, '::') > 0 "
+            "THEN SUBSTR(path, 1, INSTR(path, '::') - 1) ELSE path END) as c "
+            "FROM vec_embeddings"
         ).fetchone()["c"]
         needs_rebuild = conn.execute(
             "SELECT value FROM meta WHERE key='embed_needs_rebuild'"
@@ -397,6 +403,7 @@ def get_embed_status(vault_path: str = ".") -> dict[str, Any]:
             "SELECT value FROM meta WHERE key='embed_dimension'"
         ).fetchone()
     except Exception:
+        total_chunks = 0
         embedded = 0
         needs_rebuild = None
         stored_dim = None
@@ -406,6 +413,7 @@ def get_embed_status(vault_path: str = ".") -> dict[str, Any]:
     return {
         "total_notes": total,
         "embedded_notes": embedded,
+        "total_chunks": total_chunks,
         "coverage_percent": coverage,
         "needs_rebuild": bool(needs_rebuild and needs_rebuild["value"] == "1"),
         "stored_dimension": int(stored_dim["value"]) if stored_dim else None,

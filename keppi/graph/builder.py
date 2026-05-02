@@ -11,16 +11,28 @@ import networkx as nx
 from keppi.parser.config import Config
 from keppi.parser.markdown import ParsedNote
 
+CHUNK_SIZE = 8000
+CHUNK_OVERLAP = 200
 
-def _read_note_body(vault_path: Path, rel_path: str, max_chars: int = 8000) -> str:
-    """
-    Read a note's markdown file from the vault, strip YAML frontmatter,
-    return the body (truncated to max_chars). Returns "" on any read error.
 
-    max_chars limits the body length sent for embedding. Most embedding
-    models have an 8192 token context (~32K chars). 8000 chars is a safe
-    default that captures the most informative content (intro, key sections)
-    while staying within context limits.
+def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list[str]:
+    """Split text into overlapping chunks. Returns [text] if short enough."""
+    if len(text) <= chunk_size:
+        return [text]
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        if end >= len(text):
+            break
+        start += chunk_size - overlap
+    return chunks
+
+
+def _read_note_body(vault_path: Path, rel_path: str) -> str:
+    """Read a note's markdown file from the vault, strip YAML frontmatter.
+    Returns "" on any read error. Chunking is handled by the caller.
     """
     full_path = vault_path / rel_path
     try:
@@ -32,10 +44,7 @@ def _read_note_body(vault_path: Path, rel_path: str, max_chars: int = 8000) -> s
         end = text.find("\n---\n", 4)
         if end != -1:
             text = text[end + 5:]
-    text = text.strip()
-    if len(text) > max_chars:
-        text = text[:max_chars]
-    return text
+    return text.strip()
 
 
 def embed_all_notes(
@@ -47,15 +56,17 @@ def embed_all_notes(
     progress_callback=None,
 ) -> dict:
     """
-    Embed all notes not yet in vec_embeddings.
+    Embed all notes not yet in vec_embeddings, using overlapping chunks.
     force=True re-embeds everything.
     progress_callback: optional callable(current: int, total: int, title: str)
-    Returns {"embedded": N, "skipped": N, "errors": N, "error_paths": list[str]}
+    Returns {"embedded": N, "skipped": N, "errors": N, "error_paths": list[str], "chunks": N}
 
     If meta['embed_needs_rebuild'] == '1', forces full rebuild and clears the flag.
 
     Reads note body directly from the markdown file via vault_path / nodes.path.
     Falls back to title + headings only if the file is unreadable or empty.
+    Each note is split into overlapping chunks; each chunk gets its own embedding
+    with key "path::N". Failure on one chunk does not block other chunks or notes.
     """
     import json as _json
 
@@ -68,24 +79,30 @@ def embed_all_notes(
         conn.commit()
 
     try:
-        already = {
+        all_chunk_paths = {
             row["path"] for row in conn.execute("SELECT path FROM vec_embeddings")
         }
     except Exception:
-        already = set()
+        all_chunk_paths = set()
+
+    # Derive already-embedded note paths by stripping ::N chunk suffix
+    already_notes: set[str] = set()
+    for chunk_path in all_chunk_paths:
+        sep = chunk_path.find("::")
+        already_notes.add(chunk_path[:sep] if sep != -1 else chunk_path)
 
     all_notes = conn.execute(
         "SELECT path, title, headings FROM nodes"
     ).fetchall()
 
-    embedded = skipped = errors = 0
+    embedded = skipped = errors = chunks_total = 0
     error_paths: list[str] = []
     total = len(all_notes)
 
     for i, row in enumerate(all_notes):
         path = row["path"]
 
-        if not force and path in already:
+        if not force and path in already_notes:
             skipped += 1
             continue
 
@@ -110,19 +127,38 @@ def embed_all_notes(
         if progress_callback:
             progress_callback(i + 1, total, row["title"] or path)
 
+        # Delete old embeddings (both old-format "path" and new "path::N")
         try:
-            from keppi.search.semantic import embed_and_store
-            embed_and_store(conn, path, text, provider)
-            embedded += 1
+            conn.execute(
+                "DELETE FROM vec_embeddings WHERE path = ? OR path LIKE ?",
+                (path, path + "::%"),
+            )
+            conn.commit()
         except Exception:
+            pass
+
+        chunks = chunk_text(text)
+        chunk_errors = 0
+        from keppi.search.semantic import embed_and_store
+        for ci, chunk in enumerate(chunks):
+            try:
+                embed_and_store(conn, f"{path}::{ci}", chunk, provider)
+                chunks_total += 1
+            except Exception:
+                chunk_errors += 1
+
+        if chunk_errors == len(chunks):
             errors += 1
             error_paths.append(path)
+        else:
+            embedded += 1
 
     return {
         "embedded": embedded,
         "skipped": skipped,
         "errors": errors,
         "error_paths": error_paths,
+        "chunks": chunks_total,
     }
 
 # Emoji prefixes commonly used in Obsidian section headings

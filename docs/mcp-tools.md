@@ -123,6 +123,57 @@ Build a minimal token-budgeted reading set for a topic. The key tool for AI cont
 }
 ```
 
+### `semantic_search`
+Vector KNN search — finds notes by meaning, not keywords. Handles chunked notes transparently: long notes are indexed as overlapping 8 000-char segments, and results are deduplicated to one entry per note (best-matching chunk wins).
+
+**Parameters:**
+- `query` (str) — Natural language query
+- `limit` (int, default 10) — Max results after deduplication
+- `wiki_only` (bool, default false) — Restrict to `3-Resources/wiki/`
+- `path_prefix` (str, optional) — Restrict to any subdirectory prefix
+- `vault_path` (str, optional)
+
+**Returns:**
+```json
+{
+  "count": 3,
+  "query": "consequences of leaving a job",
+  "scope": "full vault",
+  "results": [
+    {"path": "1-Projects/Job Search.md", "title": "Job Search", "distance": 0.18, "match_strength": "strong match"},
+    {"path": "2-Areas/Career.md",        "title": "Career",     "distance": 0.31, "match_strength": "moderate match"}
+  ]
+}
+```
+
+**Distance guide:** < 0.3 strong · 0.3–0.5 moderate · > 0.5 weak (fall back to `keyword_search`).
+
+Returns `{"error": "embeddings_not_built"}` if `keppi embed` has not been run.
+
+### `get_embed_status`
+Check embedding coverage before running `semantic_search`.
+
+**Parameters:**
+- `vault_path` (str, optional)
+
+**Returns:**
+```json
+{
+  "total_notes": 1483,
+  "embedded_notes": 1483,
+  "total_chunks": 1621,
+  "coverage_percent": 100.0,
+  "needs_rebuild": false,
+  "stored_dimension": 768,
+  "configured_provider": "ollama",
+  "configured_model": "nomic-embed-text",
+  "ready_for_semantic_search": true,
+  "action_needed": null
+}
+```
+
+`total_chunks` ≥ `embedded_notes` because long notes produce multiple chunks. `embedded_notes` counts unique notes (not chunks), so `coverage_percent` reflects note coverage.
+
 ### `keyword_search`
 Search notes by keyword across title, tags, headings, and body.
 
@@ -221,3 +272,13 @@ Human: "I'm writing about data lakehouses. What should I read?"
 AI uses: context_pack("data lakehouse", token_budget=4000)
 → Returns 5 most relevant notes within budget
 → AI reads those notes and answers with full context
+```
+
+```
+Human: "Find notes about career transitions"
+
+AI uses: get_embed_status() → ready_for_semantic_search: true
+AI uses: semantic_search("career transitions and job changes", limit=5)
+→ Returns best-matching notes by meaning, deduplicated per note
+→ Distances < 0.3 are read first; > 0.5 triggers keyword_search fallback
+```
