@@ -12,10 +12,15 @@ from keppi.parser.config import Config
 from keppi.parser.markdown import ParsedNote
 
 
-def _read_note_body(vault_path: Path, rel_path: str) -> str:
+def _read_note_body(vault_path: Path, rel_path: str, max_chars: int = 8000) -> str:
     """
     Read a note's markdown file from the vault, strip YAML frontmatter,
-    return the body. Returns "" on any read error.
+    return the body (truncated to max_chars). Returns "" on any read error.
+
+    max_chars limits the body length sent for embedding. Most embedding
+    models have an 8192 token context (~32K chars). 8000 chars is a safe
+    default that captures the most informative content (intro, key sections)
+    while staying within context limits.
     """
     full_path = vault_path / rel_path
     try:
@@ -27,7 +32,10 @@ def _read_note_body(vault_path: Path, rel_path: str) -> str:
         end = text.find("\n---\n", 4)
         if end != -1:
             text = text[end + 5:]
-    return text.strip()
+    text = text.strip()
+    if len(text) > max_chars:
+        text = text[:max_chars]
+    return text
 
 
 def embed_all_notes(
