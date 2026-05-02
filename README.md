@@ -78,16 +78,16 @@ Raw Sources  →  Wiki  →  ┌─────────────┐  → 
   (immutable)   (LLM-owned)  │  Keppi Graph  │     (for AI)
                               └─────────────┘
                                     │
-                          ┌─────────┼─────────┐
-                          │         │         │
-                     blast-radius  gaps  communities
-                     traverse     orphans  drift
+                          ┌─────────┼──────────┐
+                          │         │          │
+                     blast-radius  gaps   semantic_search
+                     traverse     orphans  communities
                      context-pack  hubs   suggest-links
 ```
 
-The wiki is the *what*. Keppi is the *how everything connects*. Without the graph, you're doing keyword search on a wiki. With it, you're doing relevance-ranked traversal that understands which connections carry weight.
+The wiki is the *what*. Keppi is the *how everything connects*. Without the graph, you're doing keyword search on a wiki. With it, you're doing relevance-ranked traversal that understands which connections carry weight — and semantic search that finds meaning across your full vault without keyword guessing.
 
-**What this enables that similarity search can't:**
+**What this enables that similarity search alone can't:**
 
 | Question | Similarity Search | Graph Traversal |
 |----------|------------------|-----------------|
@@ -125,8 +125,51 @@ The wiki is the *what*. Keppi is the *how everything connects*. Without the grap
 | Command | What it does | Example input → output |
 |---------|-------------|--------------------|
 | `keppi search` | Keyword search across title, tags, headings, body | `keppi search "databricks"` → matching notes ranked by relevance |
+| `keppi semantic-search` | Meaning-based vector search using embeddings | `keppi semantic-search "consequences of leaving a job"` → notes ranked by semantic distance |
+| `keppi embed` | Build or refresh the vector embedding index | `keppi embed --force` → embeds all notes with a progress bar |
 | `keppi broken-links` | List all broken wikilinks | `keppi broken-links` → `Source → Missing target` for every broken link |
 | `keppi suggest-links` | Suggest missing connections based on content overlap | `keppi suggest-links "Project Alpha"` → notes that should link but don't |
+
+### Semantic Search
+
+Keppi supports meaning-based search powered by vector embeddings. Semantic search finds conceptually related notes even when they use different words — no keyword guessing required.
+
+**How it works:**
+
+1. `keppi build` parses the vault into the graph
+2. `keppi embed` generates vector embeddings for every note (stored in the same SQLite DB)
+3. `keppi semantic-search` runs KNN vector search against those embeddings
+
+**Embedding providers:**
+
+| Provider | Setup | Model |
+|----------|-------|-------|
+| Ollama (default) | `ollama pull nomic-embed-text` | `nomic-embed-text` (768-dim) |
+| OpenAI | Set `OPENAI_API_KEY` env var | `text-embedding-3-small` (1536-dim) |
+
+**Distance interpretation:**
+
+| Distance | Signal | What to do |
+|----------|--------|------------|
+| < 0.3 | Strong match | High confidence — this note likely answers the question |
+| 0.3–0.5 | Moderate match | Relevant — worth reading |
+| > 0.5 | Weak match | Topic may not be well-covered in the vault |
+
+**Auto-embed on watch:** When the file watcher is running (`keppi watch`), newly changed notes are automatically embedded on save when `auto_embed = true` in config (the default).
+
+**Config (`~/.keppi/keppi.toml`):**
+
+```toml
+[embed]
+provider = "ollama"           # or "openai"
+model = "nomic-embed-text"    # model served by provider
+dimension = 768               # must match the model
+# api_key_env = "OPENAI_API_KEY"   # for openai provider
+# base_url = "http://localhost:11434"  # override default URL
+auto_embed = true             # auto-embed notes on watch
+```
+
+See [keppi.example.toml](keppi.example.toml) for a full annotated example.
 
 ### Config
 
@@ -143,16 +186,23 @@ keppi install claude    # Auto-configure for Claude Desktop
 keppi install cursor    # Auto-configure for Cursor
 ```
 
-17 graph-aware tools available to any MCP-compatible AI assistant: `blast_radius`, `context_pack`, `find_gaps`, `suggest_links`, `keyword_search`, and more.
+19 graph-aware tools available to any MCP-compatible AI assistant: `blast_radius`, `context_pack`, `find_gaps`, `suggest_links`, `keyword_search`, `semantic_search`, `get_embed_status`, and more.
 
 For other MCP clients, use `keppi mcp-server /path/to/vault` and configure manually.
+
+**Semantic MCP tools:**
+
+| Tool | What it does |
+|------|-------------|
+| `semantic_search` | Vector KNN search by meaning. Supports `wiki_only=True` to scope results to `3-Resources/wiki/`. Returns path, title, and distance. |
+| `get_embed_status` | Returns embedding coverage %, `ready_for_semantic_search` bool, and action guidance for the AI assistant. |
 
 ### Agent Skills
 
 Keppi ships two agent skills for structured research workflows:
 
-- **wiki-search** — Fast path: check the wiki layer first (~400-600 tokens), fall back to Keppi graph navigation. Best for known entities, people, projects, and relationships.
-- **vault-research** — Deep path: comprehensive multi-note analysis using blast radius, context packs, and raw note reads. Best for evidence retrieval from meeting transcripts or questions requiring 4+ source notes.
+- **wiki-search** — Fast path: semantic pre-check → wiki layer (~400-600 tokens) → Keppi graph navigation. The semantic pre-check (`get_embed_status` + `semantic_search(wiki_only=True)`) resolves most queries in a single read without any keyword guessing. Best for known entities, people, projects, and relationships.
+- **vault-research** — Deep path: comprehensive multi-note analysis using blast radius, context packs, and raw note reads. Uses semantic search as the primary entry-point finder, falling back to keyword search only when embeddings aren't available. Best for evidence retrieval from meeting transcripts or questions requiring 4+ source notes.
 
 Both skills are in the `skills/` directory and can be added to any MCP-compatible AI assistant.
 
@@ -189,6 +239,24 @@ Or with `uv`:
 uv tool install keppi
 ```
 
+**For semantic search**, install with the `embeddings` extra:
+
+```bash
+pip install keppi[embeddings]
+# or
+uv tool install "keppi[embeddings]"
+```
+
+This adds `sqlite-vec` (vector search extension) and `httpx` (HTTP client for embedding providers). Then install an embedding provider:
+
+```bash
+# Option A: Ollama (local, free)
+ollama pull nomic-embed-text
+
+# Option B: OpenAI (set key in your shell profile)
+export OPENAI_API_KEY=sk-...
+```
+
 **Requirements:** Python 3.10+. Works with any markdown directory — no Obsidian required.
 
 ---
@@ -205,6 +273,12 @@ keppi build ~/Documents/Obsidian\ Vault
 # 3. Explore
 keppi stats ~/Documents/Obsidian\ Vault
 keppi blast-radius "Job Relocation" --depth 2
+
+# 4. Build embeddings for semantic search (requires keppi[embeddings] + Ollama or OpenAI)
+keppi embed ~/Documents/Obsidian\ Vault
+
+# 5. Search by meaning
+keppi semantic-search "what are the financial consequences of leaving my job"
 ```
 
 **Windows:** Set `PYTHONUTF8=1` in your environment or prefix commands:
@@ -233,6 +307,10 @@ $env:PYTHONUTF8=1; keppi build "C:\Users\You\Documents\Obsidian Vault"
 ### Relevance Decay
 
 Blast radius uses BFS with relevance decay: `relevance = parent_relevance × edge_weight`. Results are sorted by relevance descending. A `related_to` link carries 2× the weight of a wikilink, which carries 2× the weight of a tag overlap.
+
+### Semantic Search
+
+Embeddings are generated from the full note body (frontmatter stripped) and stored in a `vec_embeddings` table in the SQLite DB using `sqlite-vec`. KNN search runs directly in SQLite — no separate vector store, no network calls at query time. The graph DB and vector index are always co-located.
 
 ### Context Packs
 
@@ -282,4 +360,3 @@ See [keppi.example.toml](keppi.example.toml) for the full config reference.
 ## License
 
 MIT — See [LICENSE](LICENSE).
-
