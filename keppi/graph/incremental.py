@@ -77,6 +77,12 @@ def incremental_update(
             counts["deleted"] += 1
             graph.remove_node(rel_path) if graph.has_node(rel_path) else None
             delete_node(conn, rel_path)
+            # Remove embedding for deleted note (non-blocking)
+            try:
+                conn.execute("DELETE FROM vec_embeddings WHERE path = ?", (rel_path,))
+                conn.commit()
+            except Exception:
+                pass
 
     # Add new/changed notes to the graph and builder
     for note in notes_to_process:
@@ -90,6 +96,28 @@ def incremental_update(
         node_data = graph.nodes.get(note.path, {})
         node_data.update(builder.graph.nodes.get(note.path, {}))
         upsert_node(conn, note.path, node_data)
+
+        # Auto-embed on note create/update (non-blocking)
+        if config.embed.auto_embed:
+            try:
+                from keppi.graph.builder import _read_note_body
+                from keppi.graph.storage import ensure_vec_table
+                from keppi.search.providers import get_provider
+                from keppi.search.semantic import embed_and_store
+
+                if ensure_vec_table(conn, config.embed.dimension):
+                    text = _read_note_body(vault_root, note.path)
+                    if not text:
+                        # Fall back to title only if file is unreadable/empty
+                        text = node_data.get("title", note.path)
+                    provider = get_provider(config)
+                    embed_and_store(conn, note.path, text, provider)
+            except Exception as e:
+                import logging
+                logging.getLogger("keppi.embed").debug(
+                    "incremental auto-embed failed for %s: %s", note.path, e
+                )
+                # never block incremental update
 
         # Persist outgoing edges
         out_edges = [

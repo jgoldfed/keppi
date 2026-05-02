@@ -97,6 +97,39 @@ Desktop Commander:start_process
 
 ## Steps
 
+### Step 0 — Semantic Pre-Check (Start Here)
+
+Before keyword search, run a semantic search scoped to your wiki directory.
+One call replaces 2-3 trial-and-error keyword searches. Takes ~2 seconds.
+
+**Check if embeddings are ready:**
+```
+keppi:get_embed_status()
+```
+If `ready_for_semantic_search` is false, skip to Step 1 (keyword search).
+
+**If ready, run semantic search scoped to wiki:**
+```
+keppi:semantic_search(
+    query="<natural language description of what you need>",
+    wiki_only=True,
+    limit=5
+)
+```
+
+**Interpreting results:**
+
+| Distance | Strength | Action |
+|---|---|---|
+| < 0.3 | strong | Read this wiki page — likely answers the question in 1 read |
+| 0.3–0.5 | moderate | Read it, then supplement with Step 1 if needed |
+| > 0.5 or empty | weak | Skip to Step 1 — wiki has no strong coverage |
+
+**The payoff:** A strong hit resolves the query in ~400 tokens (1 wiki read).
+A weak or empty result is also useful — it tells you the wiki needs a new page.
+
+---
+
 ### Step 1 — Check the Wiki Index (always first)
 
 ```

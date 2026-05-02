@@ -3,12 +3,119 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 import networkx as nx
 
 from keppi.parser.config import Config
 from keppi.parser.markdown import ParsedNote
+
+
+def _read_note_body(vault_path: Path, rel_path: str) -> str:
+    """
+    Read a note's markdown file from the vault, strip YAML frontmatter,
+    return the body. Returns "" on any read error.
+    """
+    full_path = vault_path / rel_path
+    try:
+        text = full_path.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+    # Strip YAML frontmatter if present
+    if text.startswith("---\n"):
+        end = text.find("\n---\n", 4)
+        if end != -1:
+            text = text[end + 5:]
+    return text.strip()
+
+
+def embed_all_notes(
+    conn: sqlite3.Connection,
+    provider,
+    vault_path: Path,
+    *,
+    force: bool = False,
+    progress_callback=None,
+) -> dict:
+    """
+    Embed all notes not yet in vec_embeddings.
+    force=True re-embeds everything.
+    progress_callback: optional callable(current: int, total: int, title: str)
+    Returns {"embedded": N, "skipped": N, "errors": N, "error_paths": list[str]}
+
+    If meta['embed_needs_rebuild'] == '1', forces full rebuild and clears the flag.
+
+    Reads note body directly from the markdown file via vault_path / nodes.path.
+    Falls back to title + headings only if the file is unreadable or empty.
+    """
+    import json as _json
+
+    needs_rebuild = conn.execute(
+        "SELECT value FROM meta WHERE key='embed_needs_rebuild'"
+    ).fetchone()
+    if needs_rebuild and needs_rebuild["value"] == "1":
+        force = True
+        conn.execute("DELETE FROM meta WHERE key='embed_needs_rebuild'")
+        conn.commit()
+
+    try:
+        already = {
+            row["path"] for row in conn.execute("SELECT path FROM vec_embeddings")
+        }
+    except Exception:
+        already = set()
+
+    all_notes = conn.execute(
+        "SELECT path, title, headings FROM nodes"
+    ).fetchall()
+
+    embedded = skipped = errors = 0
+    error_paths: list[str] = []
+    total = len(all_notes)
+
+    for i, row in enumerate(all_notes):
+        path = row["path"]
+
+        if not force and path in already:
+            skipped += 1
+            continue
+
+        # Primary: read full markdown body from disk
+        text = _read_note_body(vault_path, path)
+
+        # Fallback: title + headings if file is unreadable or empty
+        if not text:
+            headings = []
+            try:
+                headings = _json.loads(row["headings"] or "[]")
+            except Exception:
+                pass
+            text = row["title"] or ""
+            if headings:
+                text += "\n" + "\n".join(str(h) for h in headings)
+
+        if not text.strip():
+            skipped += 1
+            continue
+
+        if progress_callback:
+            progress_callback(i + 1, total, row["title"] or path)
+
+        try:
+            from keppi.search.semantic import embed_and_store
+            embed_and_store(conn, path, text, provider)
+            embedded += 1
+        except Exception:
+            errors += 1
+            error_paths.append(path)
+
+    return {
+        "embedded": embedded,
+        "skipped": skipped,
+        "errors": errors,
+        "error_paths": error_paths,
+    }
 
 # Emoji prefixes commonly used in Obsidian section headings
 _EMOJI_HEADING_PREFIXES = (

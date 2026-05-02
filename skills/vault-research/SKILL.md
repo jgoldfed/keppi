@@ -104,13 +104,28 @@ ahead — the `sources:` frontmatter field tells you exactly which raw notes to 
 
 ### Step 1 — Find Entry Points
 
-```python
-keppi:keyword_search(query="<topic keywords>", limit=5)
+**Try semantic search first** — it finds conceptually related notes even when
+phrased differently, replacing 2-3 keyword iterations with one call.
+
+Check embedding status (skip if already checked in Step 0 of wiki-search):
+```
+keppi:get_embed_status()
 ```
 
-Run 1-2 targeted searches. Keep queries to 2-4 words. Keep `limit` at 5 or below —
-on a 2,600+ node vault, larger limits return more payload with diminishing value.
-Each query must be meaningfully different — repeating terms returns the same results.
+If `ready_for_semantic_search` is true, run semantic search across full vault:
+```
+keppi:semantic_search(query="<natural language description>", limit=5)
+```
+
+Use results with distance < 0.5 as `blast_radius` entry points (Step 2).
+If all distances > 0.5 or no results, fall through to keyword search.
+
+**Keyword fallback (use only if semantic unavailable or all weak):**
+```
+keppi:keyword_search(query="<2-4 word topic>", limit=5)
+```
+Run at most 2 differently-worded queries. Semantic search eliminates the need
+to rephrase the same concept multiple times.
 
 ---
 
@@ -270,6 +285,8 @@ Desktop Commander:start_process
 
 | Tool                   | Use                                          | Performance                                                        |
 | ---------------------- | -------------------------------------------- | ------------------------------------------------------------------ |
+| `keppi:semantic_search` | Find notes by meaning, not keywords. `wiki_only=True` for wiki fast lane | Fast — 1 call replaces 2-3 keyword iterations |
+| `keppi:get_embed_status` | Check embedding coverage before semantic search | Always call first if unsure whether embeddings are built |
 | `keppi:keyword_search` | Find entry-point notes by keyword            | Fast — use limit=5                                                 |
 | `keppi:blast_radius`   | Map structural connections from a seed note  | Moderate                                                           |
 | `keppi:context_pack`   | Token-budgeted reading list with content     | Moderate                                                           |

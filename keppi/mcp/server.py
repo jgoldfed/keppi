@@ -15,11 +15,15 @@ from keppi.parser.config import Config, load_config
 mcp = FastMCP(
     "keppi",
     instructions=(
-        "Keppi gives you graph-aware access to a knowledge vault. "
-        "Start with get_graph_stats to understand the vault. "
-        "Use context_pack to build a token-budgeted reading set for any topic. "
-        "Use blast_radius to find what notes are affected by a concept change. "
-        "Use detect_gaps to find structural blind spots between idea clusters."
+        "Keppi gives you graph-aware and semantic access to a knowledge vault. "
+        "SEARCH STRATEGY: "
+        "(1) Call get_embed_status() once to check if semantic search is ready. "
+        "(2) Use semantic_search(wiki_only=True) as your first search — it finds "
+        "wiki pages by meaning, not exact keywords. One call replaces 2-3 keyword attempts. "
+        "(3) Fall back to keyword_search only if semantic returns no strong results (distance > 0.5). "
+        "Use context_pack to build a token-budgeted reading set for deep research. "
+        "Use blast_radius to trace structural impact of a concept change. "
+        "Use detect_gaps to find blind spots between idea clusters."
     ),
 )
 
@@ -289,6 +293,135 @@ def context_pack(topic: str, token_budget: int = 4000, depth: int = 2, vault_pat
             }
             for e in pack.entries
         ],
+    }
+
+
+@mcp.tool()
+def semantic_search(
+    query: str,
+    limit: int = 10,
+    wiki_only: bool = False,
+    path_prefix: str = "",
+    vault_path: str = ".",
+) -> dict[str, Any]:
+    """
+    Find notes semantically similar to a natural language query.
+
+    USE THIS BEFORE keyword_search. It understands meaning and synonyms —
+    one call replaces 2-3 trial-and-error keyword searches.
+
+    wiki_only=True: restrict to 3-Resources/wiki/ (concepts, entities, syntheses).
+    This is the recommended starting point — scoped to your most distilled knowledge.
+
+    path_prefix: restrict to any specific subdirectory.
+
+    Distance interpretation:
+    - < 0.3 (strong): high confidence match — read this note first
+    - 0.3–0.5 (moderate): likely relevant — worth reading
+    - > 0.5 (weak): loosely related — proceed to keyword_search instead
+
+    Returns {"error": "embeddings_not_built"} with instructions if keppi embed
+    has not been run yet. Check get_embed_status() if unsure.
+    """
+    try:
+        graph, conn, config = _load(vault_path)
+    except FileNotFoundError as e:
+        return {"error": str(e)}
+
+    # Check embeddings exist
+    try:
+        count = conn.execute(
+            "SELECT COUNT(*) as c FROM vec_embeddings"
+        ).fetchone()["c"]
+        if count == 0:
+            return {
+                "error": "embeddings_not_built",
+                "message": f"No embeddings found. Run: keppi embed {vault_path}",
+                "hint": "After keppi embed completes, semantic_search will work.",
+            }
+    except Exception:
+        return {
+            "error": "embeddings_not_built",
+            "message": f"Embeddings table not found. Run: keppi embed {vault_path}",
+        }
+
+    from keppi.search.providers import get_provider
+    from keppi.search.semantic import semantic_search as _search
+
+    prefix = "3-Resources/wiki/" if wiki_only else (path_prefix or None)
+
+    try:
+        provider = get_provider(config)
+        results = _search(conn, query, provider, limit=limit, path_prefix=prefix)
+    except Exception as e:
+        return {"error": f"Semantic search failed: {e}"}
+
+    return {
+        "count": len(results),
+        "query": query,
+        "scope": prefix or "full vault",
+        "results": [
+            {
+                "path": r.path,
+                "title": r.title,
+                "distance": round(r.distance, 4),
+                "match_strength": r.match_context,
+            }
+            for r in results
+        ],
+    }
+
+
+@mcp.tool()
+def get_embed_status(vault_path: str = ".") -> dict[str, Any]:
+    """
+    Check embedding coverage: how many notes have embeddings vs total.
+    Call this before semantic_search to verify embeddings are ready.
+    Returns ready_for_semantic_search: bool and action_needed guidance.
+    """
+    try:
+        graph, conn, config = _load(vault_path)
+    except FileNotFoundError as e:
+        return {"error": str(e)}
+
+    total = conn.execute("SELECT COUNT(*) as c FROM nodes").fetchone()["c"]
+
+    try:
+        embedded = conn.execute(
+            "SELECT COUNT(*) as c FROM vec_embeddings"
+        ).fetchone()["c"]
+        needs_rebuild = conn.execute(
+            "SELECT value FROM meta WHERE key='embed_needs_rebuild'"
+        ).fetchone()
+        stored_dim = conn.execute(
+            "SELECT value FROM meta WHERE key='embed_dimension'"
+        ).fetchone()
+    except Exception:
+        embedded = 0
+        needs_rebuild = None
+        stored_dim = None
+
+    coverage = round((embedded / total * 100), 1) if total else 0.0
+
+    return {
+        "total_notes": total,
+        "embedded_notes": embedded,
+        "coverage_percent": coverage,
+        "needs_rebuild": bool(needs_rebuild and needs_rebuild["value"] == "1"),
+        "stored_dimension": int(stored_dim["value"]) if stored_dim else None,
+        "configured_provider": config.embed.provider,
+        "configured_model": config.embed.model,
+        "ready_for_semantic_search": embedded > 0 and coverage >= 80.0,
+        "action_needed": (
+            f"Run: keppi embed {vault_path}"
+            if embedded == 0
+            else (
+                f"Run: keppi embed {vault_path} "
+                f"({total - embedded} notes not yet embedded)"
+                if coverage < 100
+                else None
+            )
+        ),
     }
 
 

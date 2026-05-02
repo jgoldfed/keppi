@@ -76,3 +76,27 @@ cache_max_age_days = 30
 enabled = true
 debounce_ms = 2000
 ignore_patterns = [".obsidian/*"]
+
+# =============================================================================
+# SEMANTIC SEARCH — Phase 1 (Ollama + OpenAI)
+# Requires: pip install keppi[embeddings]
+# After configuring, run: keppi embed <vault>
+# Embeddings also run automatically on keppi build and file watch changes.
+# Set KEPPI_DEBUG=1 to see auto-embed failures in the log.
+# =============================================================================
+
+# [embed]
+# provider = "ollama"             # ollama | openai
+# model = "nomic-embed-text"      # ollama pull nomic-embed-text
+# dimension = 768                 # must match model output dimension
+# api_key_env = ""                # env var name for API key (empty = Ollama)
+# base_url = ""                   # optional: override default endpoint
+# auto_embed = true               # auto-embed on keppi build and watch events
+
+# --- OpenAI example ---
+# [embed]
+# provider = "openai"
+# model = "text-embedding-3-small"
+# dimension = 1536
+# api_key_env = "OPENAI_API_KEY"
+# auto_embed = true

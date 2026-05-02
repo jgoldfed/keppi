@@ -75,6 +75,27 @@ class WatchConfig:
 
 
 @dataclass
+class EmbedConfig:
+    provider: str = "ollama"
+    # Supported in Phase 1: ollama | openai
+    model: str = "nomic-embed-text"
+    dimension: int = 768
+    # Dimensions:
+    #   ollama nomic-embed-text       → 768
+    #   openai text-embedding-3-small → 1536
+    #   openai text-embedding-3-large → 3072
+    api_key_env: str = ""
+    # Name of env var holding the API key (e.g. "OPENAI_API_KEY")
+    # Leave empty for Ollama (no key needed)
+    base_url: str = ""
+    # Override default endpoint. Defaults:
+    #   ollama → http://localhost:11434
+    #   openai → https://api.openai.com
+    auto_embed: bool = True
+    # If True, keppi build and the file watcher automatically embed new/changed notes
+
+
+@dataclass
 class Config:
     vault: VaultConfig = field(default_factory=VaultConfig)
     frontmatter: FrontmatterConfig = field(default_factory=FrontmatterConfig)
@@ -83,6 +104,7 @@ class Config:
     graph: GraphConfig = field(default_factory=GraphConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
     watch: WatchConfig = field(default_factory=WatchConfig)
+    embed: EmbedConfig = field(default_factory=EmbedConfig)
     config_path: Path | None = None
 
     def vault_root(self) -> Path:
@@ -176,6 +198,15 @@ def _parse_config_file(path: Path) -> Config:
         config.watch.enabled = wt.get("enabled", config.watch.enabled)
         config.watch.debounce_ms = wt.get("debounce_ms", config.watch.debounce_ms)
         config.watch.ignore_patterns = wt.get("ignore_patterns", config.watch.ignore_patterns)
+
+    if "embed" in raw:
+        em = raw["embed"]
+        config.embed.provider = em.get("provider", config.embed.provider)
+        config.embed.model = em.get("model", config.embed.model)
+        config.embed.dimension = em.get("dimension", config.embed.dimension)
+        config.embed.api_key_env = em.get("api_key_env", config.embed.api_key_env)
+        config.embed.base_url = em.get("base_url", config.embed.base_url)
+        config.embed.auto_embed = em.get("auto_embed", config.embed.auto_embed)
 
     return config
 
