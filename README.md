@@ -4,7 +4,7 @@
 > 
 > *Keppi (קעפּי) — Yiddish diminutive of kop. A little head that finds connections others miss.*
 
-Parse any Obsidian vault (or markdown directory) into a queryable knowledge graph. Trace blast radius, find structural gaps, and give any AI assistant precisely the context it needs.
+Graph traversal for your Obsidian vault. Find the connections you built but can't follow.
 
 [![CI](https://github.com/keppi/keppi/actions/workflows/ci.yml/badge.svg)](https://github.com/keppi/keppi/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/keppi)](https://pypi.org/project/keppi/)
@@ -15,9 +15,13 @@ Parse any Obsidian vault (or markdown directory) into a queryable knowledge grap
 
 ## Why Keppi?
 
+Niklas Luhmann, creator of the Zettelkasten system, wrote 70 books using a wooden box of 90,000 index cards. His system worked because every card was linked to others, and he could trace those connections outward. Most knowledge bases have the links. Nobody can follow them. Keppi follows them.
+
 Karpathy's [LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) demonstrated a powerful idea: have an LLM incrementally build and maintain a persistent wiki of interlinked markdown files, then query the wiki instead of re-reading raw sources. It works great — until your wiki grows beyond a few hundred pages.
 
 The missing piece isn't the wiki itself. It's the **query layer**. Similarity search finds textually related content. But when you're deciding whether to relocate for a job, you don't need pages that mention the city name — you need the pages *connected* to that decision: your job search, your consulting contract, your partner's business, your legal case. That's structural knowledge, and similarity search can't find it.
+
+**Keppi doesn't compile external sources into a wiki.**  It traverses the knowledge you've already built and finds the connections you didn't know were there.
 
 **Keppi builds the graph that makes the wiki queryable at scale.** It parses every wikilink, tag, frontmatter field, and folder relationship into a weighted directed graph, then answers: "Given this topic, what's the minimal set of notes I need — and how are they connected?"
 
@@ -74,8 +78,8 @@ That's not search. That's **knowing which notes matter** for a decision you're a
 Karpathy's LLM Wiki has three layers: raw sources → wiki → schema. The missing piece is the **graph layer** between wiki and query.
 
 ```
-Raw Sources  →  Wiki  →  ┌─────────────┐  →  Context Pack
-  (immutable)   (LLM-owned)  │  Keppi Graph  │     (for AI)
+Raw Sources  →  Wiki  →       ┌─────────────┐  →  Context Pack
+  (immutable)   (LLM-owned)   │ Keppi Graph │     (for AI)
                               └─────────────┘
                                     │
                           ┌─────────┼──────────┐
@@ -96,6 +100,8 @@ The wiki is the *what*. Keppi is the *how everything connects*. Without the grap
 | "What haven't I connected?" | Can't detect | Gaps between clusters, orphan notes |
 
 ## Features
+
+Trace blast radius, identify structural gaps, and give any AI assistant the precise context it needs.
 
 ### Core Commands
 
