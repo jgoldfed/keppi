@@ -38,7 +38,7 @@ Broken links: 792
 Orphans:      5
 ```
 
-792 broken links. 5 orphan notes. A pile of tag overlaps masquerading as connections. That's a knowledge base where you can't trust what you find.
+792 broken links. 5 orphan notes. A pile of tag overlaps masquerading as connections. The real connections, wikilinks, and explicit related_to links actually increased. The graph got smaller and more trustworthy at the same time. That's a knowledge base where you can't trust what you find.
 
 **After Keppi:**
 
