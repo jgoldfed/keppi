@@ -409,3 +409,39 @@ project") — you just don't want the actual secret text sent to OpenAI.
 - In file watcher auto-embed hook, check path against `embed_exclude_dirs`
 - On `keppi embed`, delete existing embeddings for notes in newly-excluded dirs
 - Default value: empty list (no folders excluded)
+
+---
+
+## FR-005: Source-Verified Wiki Claims
+
+**Priority:** High | **Status:** Open
+
+### Problem
+
+Wiki pages contain factual errors from LLM ingestion (e.g., AVER wiki claimed
+a 2020 book was "written during AVER era" when AVER started in 2023). Current
+`sources:` frontmatter lists which notes informed a page but doesn't verify
+that specific claims appear in those sources.
+
+### Solution
+
+**Inline source citations:** Every factual claim in a wiki page gets a
+`^[source-note-slug]` marker. Claims without a traceable source don't go in.
+
+**Source verification in lint:** Weekly lint verifies each claim against its
+cited source — bounded O(n) check, not O(n²) cross-page contradiction search.
+
+**Claim lifecycle:** draft → verified (active) → unverifiable (disputed) →
+human review → active or removed. Per-claim status, not per-page.
+
+**Out of scope:** Cross-page contradiction detection (too open-ended),
+auto-correction (human decides), real-time verification on every read.
+
+### Key Principle
+
+We don't need to find all contradictions. We need to verify each claim against
+its stated source. That's a scoped, manageable problem.
+
+### Files
+
+Full spec: `0-Inbox/Keppi FR - Source-Verified Wiki Claims.md`
