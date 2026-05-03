@@ -75,7 +75,7 @@ class OllamaProvider(EmbedProvider):
     # in one model load, so larger batches amortize the startup cost.
     # Memory-bound: nomic-embed-text is ~560MB, so even 64 texts
     # at 8K chars each fits comfortably in RAM.
-    BATCH_SIZE = 32
+    BATCH_SIZE = 8  # CPU-only Ollama; set to 32 for GPU
 
     def __init__(self, config):
         super().__init__(config)
