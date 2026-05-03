@@ -10,8 +10,9 @@ import networkx as nx
 
 from keppi.parser.config import Config
 from keppi.parser.markdown import ParsedNote
+from keppi.search.providers import serialize_vector
 
-CHUNK_SIZE = 8000
+CHUNK_SIZE = 1600
 CHUNK_OVERLAP = 200
 
 
@@ -128,9 +129,6 @@ def embed_all_notes(
     provider call, bulk-insert with executemany, commit, then advance.
     Progress is durable after every batch.
     """
-    import json as _json
-    from keppi.search.providers import serialize_vector
-
     needs_rebuild = conn.execute(
         "SELECT value FROM meta WHERE key='embed_needs_rebuild'"
     ).fetchone()
@@ -168,7 +166,7 @@ def embed_all_notes(
         if not text:
             headings = []
             try:
-                headings = _json.loads(row["headings"] or "[]")
+                headings = json.loads(row["headings"] or "[]")
             except Exception:
                 pass
             text = row["title"] or ""

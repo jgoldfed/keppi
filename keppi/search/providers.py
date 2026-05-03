@@ -82,12 +82,12 @@ class OllamaProvider(EmbedProvider):
         self._model_warmed_up = False
 
     def _ensure_model_loaded(self, base: str, log) -> None:
-        """Pre-load the model via /api/embeddings with num_ctx=8192.
+        """Pre-load the model via /api/embeddings with num_ctx=2048.
 
         Some Ollama builds validate input length in /api/embed against the
         already-loaded model's context window rather than the options in the
         request. By warming up via /api/embeddings (which does honor options)
-        we ensure the model is resident in Ollama's memory with num_ctx=8192
+        we ensure the model is resident in Ollama's memory with num_ctx=2048
         before any /api/embed batch call touches it.
         """
         import httpx
@@ -101,12 +101,12 @@ class OllamaProvider(EmbedProvider):
                 json={
                     "model": self.config.embed.model,
                     "prompt": " ",
-                    "options": {"num_ctx": 8192},
+                    "options": {"num_ctx": 2048},
                     "keep_alive": "60m",
                 },
                 timeout=60.0,
             )
-            log.debug("Warmed up %s with num_ctx=8192", self.config.embed.model)
+            log.debug("Warmed up %s with num_ctx=2048", self.config.embed.model)
         except Exception as exc:
             log.debug("Model warmup failed (non-fatal): %s", exc)
 
@@ -131,7 +131,7 @@ class OllamaProvider(EmbedProvider):
                     json={
                         "model": self.config.embed.model,
                         "prompt": text,
-                        "options": {"num_ctx": 8192},
+                        "options": {"num_ctx": 2048},
                     },
                     timeout=30.0,
                 )
@@ -177,7 +177,7 @@ class OllamaProvider(EmbedProvider):
         url = f"{base}/api/embed"
         log = logging.getLogger("keppi.embed")
 
-        # Pre-load the model with num_ctx=8192 so /api/embed batches reuse it.
+        # Pre-load the model with num_ctx=2048 so /api/embed batches reuse it.
         # Some Ollama builds ignore options in /api/embed but respect the
         # context of an already-loaded model.
         self._ensure_model_loaded(base, log)
@@ -199,7 +199,7 @@ class OllamaProvider(EmbedProvider):
                         json={
                             "model": self.config.embed.model,
                             "input": batch,
-                            "options": {"num_ctx": 8192},
+                            "options": {"num_ctx": 2048},
                         },
                         timeout=max(120.0, len(batch) * 15.0),
                     )
