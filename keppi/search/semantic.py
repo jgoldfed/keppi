@@ -24,15 +24,20 @@ def embed_and_store(
     path: str,
     text: str,
     provider,
+    *,
+    _vec: list[float] | None = None,
 ) -> None:
     """Generate embedding and upsert into vec_embeddings. Raises on failure.
 
     Validates that the returned vector dimension matches config.embed.dimension
-    before insert — sqlite-vec's binding error is unhelpful, this surfaces a
-    clear cause.
+    before insert. Accepts optional pre-computed _vec to skip embedding when
+    batch-embedding has already computed the vector.
     """
     from keppi.search.providers import serialize_vector
-    vec = provider.embed(text)
+    if _vec is not None:
+        vec = _vec
+    else:
+        vec = provider.embed(text)
     expected = provider.config.embed.dimension
     if len(vec) != expected:
         raise RuntimeError(

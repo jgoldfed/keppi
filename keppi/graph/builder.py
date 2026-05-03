@@ -52,10 +52,41 @@ def _embed_with_bisection(conn, path: str, chunks: list[str], provider) -> tuple
 
     Returns (chunks_stored, errors). Bisection stops when a sub-chunk is too
     small to split further (< 200 chars), counting it as an error instead.
+
+    Uses batch embedding when available for better throughput.
     """
     from keppi.search.providers import ContextLengthError
     from keppi.search.semantic import embed_and_store
 
+    # Try batch embed first
+    try:
+        vectors = provider.embed_batch(chunks)
+        stored = errors = 0
+        for i, (text, vec) in enumerate(zip(chunks, vectors)):
+            if not vec:
+                # Empty vector — bisection fallback for this chunk
+                if len(text) <= 200:
+                    errors += 1
+                else:
+                    mid = len(text) // 2
+                    sub_chunks = [text[:mid], text[mid:]]
+                    sub_vectors = provider.embed_batch(sub_chunks)
+                    for j, (sub_text, sub_vec) in enumerate(zip(sub_chunks, sub_vectors)):
+                        if sub_vec:
+                            embed_and_store(conn, f"{path}::{i + j}", sub_text, provider, _vec=sub_vec)
+                            stored += 1
+                        else:
+                            errors += 1
+            else:
+                embed_and_store(conn, f"{path}::{i}", text, provider, _vec=vec)
+                stored += 1
+        return stored, errors
+    except ContextLengthError:
+        pass  # Fall through to individual bisection
+    except Exception:
+        pass  # Fall through to individual bisection
+
+    # Fallback: individual embed with bisection
     stored = errors = 0
     pending = list(chunks)
     key = 0
