@@ -36,6 +36,7 @@ def _make_provider(vec_size: int = 4):
     config.embed.dimension = vec_size
     provider = MagicMock()
     provider.embed.return_value = [0.1] * vec_size
+    provider.embed_batch.side_effect = lambda texts: [[0.1] * vec_size for _ in texts]
     provider.config = config
     return provider
 
@@ -89,7 +90,7 @@ class TestEmbedAllNotes:
         assert result["embedded"] == 1
         assert result["errors"] == 0
         # Provider should have been called with the body content
-        call_text = provider.embed.call_args[0][0]
+        call_text = provider.embed_batch.call_args[0][0][0]
         assert "full note body" in call_text
 
     def test_strips_frontmatter(self, tmp_path):
@@ -105,7 +106,7 @@ class TestEmbedAllNotes:
         provider = _make_provider()
         embed_all_notes(conn, provider, tmp_path)
 
-        call_text = provider.embed.call_args[0][0]
+        call_text = provider.embed_batch.call_args[0][0][0]
         assert "Body text only." in call_text
         assert "title: Title" not in call_text
 
@@ -122,7 +123,7 @@ class TestEmbedAllNotes:
         result = embed_all_notes(conn, provider, tmp_path)
 
         assert result["embedded"] == 1
-        call_text = provider.embed.call_args[0][0]
+        call_text = provider.embed_batch.call_args[0][0][0]
         assert "My Title" in call_text
 
     def test_skips_already_embedded(self, tmp_path):
@@ -157,7 +158,7 @@ class TestEmbedAllNotes:
         result = embed_all_notes(conn, provider, tmp_path, force=True)
 
         assert result["embedded"] == 1
-        provider.embed.assert_called_once()
+        provider.embed_batch.assert_called()
 
     def test_error_counted_not_raised(self, tmp_path):
         """Provider failure increments errors dict, does not raise."""
@@ -226,7 +227,7 @@ class TestEmbedAllNotes:
                      ("note.md", "Long Note", "[]"))
         conn.commit()
 
-        long_text = "word " * 2000  # ~10000 chars, more than CHUNK_SIZE=8000
+        long_text = "word " * 2000  # ~10000 chars, more than CHUNK_SIZE=1600
         (tmp_path / "note.md").write_text(long_text, encoding="utf-8")
 
         provider = _make_provider()
