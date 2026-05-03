@@ -124,6 +124,7 @@ def incremental_update(
                             embed_and_store(conn, f"{note.path}::{ci}", chunk, provider)
                         except Exception:
                             pass
+                    conn.commit()
             except Exception as e:
                 import logging
                 logging.getLogger("keppi.embed").debug(

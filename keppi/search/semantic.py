@@ -49,7 +49,6 @@ def embed_and_store(
         "INSERT OR REPLACE INTO vec_embeddings (path, embedding) VALUES (?, ?)",
         (path, serialize_vector(vec)),
     )
-    conn.commit()
 
 
 def semantic_search(

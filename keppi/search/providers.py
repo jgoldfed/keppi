@@ -77,6 +77,39 @@ class OllamaProvider(EmbedProvider):
     # at 8K chars each fits comfortably in RAM.
     BATCH_SIZE = 32
 
+    def __init__(self, config):
+        super().__init__(config)
+        self._model_warmed_up = False
+
+    def _ensure_model_loaded(self, base: str, log) -> None:
+        """Pre-load the model via /api/embeddings with num_ctx=8192.
+
+        Some Ollama builds validate input length in /api/embed against the
+        already-loaded model's context window rather than the options in the
+        request. By warming up via /api/embeddings (which does honor options)
+        we ensure the model is resident in Ollama's memory with num_ctx=8192
+        before any /api/embed batch call touches it.
+        """
+        import httpx
+
+        if self._model_warmed_up:
+            return
+        self._model_warmed_up = True
+        try:
+            httpx.post(
+                f"{base}/api/embeddings",
+                json={
+                    "model": self.config.embed.model,
+                    "prompt": " ",
+                    "options": {"num_ctx": 8192},
+                    "keep_alive": "60m",
+                },
+                timeout=60.0,
+            )
+            log.debug("Warmed up %s with num_ctx=8192", self.config.embed.model)
+        except Exception as exc:
+            log.debug("Model warmup failed (non-fatal): %s", exc)
+
     def embed(self, text: str) -> list[float]:
         """Embed a single text via /api/embeddings (legacy single endpoint)."""
         import logging
@@ -144,6 +177,11 @@ class OllamaProvider(EmbedProvider):
         url = f"{base}/api/embed"
         log = logging.getLogger("keppi.embed")
 
+        # Pre-load the model with num_ctx=8192 so /api/embed batches reuse it.
+        # Some Ollama builds ignore options in /api/embed but respect the
+        # context of an already-loaded model.
+        self._ensure_model_loaded(base, log)
+
         results: list[list[float]] = [None] * len(texts)  # type: ignore
         batch_size = self.BATCH_SIZE
 
@@ -163,8 +201,29 @@ class OllamaProvider(EmbedProvider):
                             "input": batch,
                             "options": {"num_ctx": 8192},
                         },
-                        timeout=120.0,  # Batch can take longer
+                        timeout=max(120.0, len(batch) * 15.0),
                     )
+
+                    if resp.status_code == 400:
+                        body = resp.text
+                        if "context" in body or "input length" in body:
+                            # Input exceeds the model's context window.
+                            # /api/embed doesn't always honor options before this
+                            # check; fall back to /api/embeddings which does.
+                            log.debug(
+                                "Batch context-length 400 (batch %d-%d), "
+                                "falling back to individual embeds: %s",
+                                batch_start, batch_start + len(batch) - 1, body[:200],
+                            )
+                            for i, text in zip(batch_indices, batch):
+                                try:
+                                    results[i] = self.embed(text)
+                                except ContextLengthError:
+                                    results[i] = None
+                            break
+                        last_exc = RuntimeError(f"Ollama batch 400: {body[:120]}")
+                        continue
+
                     if resp.status_code == 500:
                         body = resp.text
                         log.debug(

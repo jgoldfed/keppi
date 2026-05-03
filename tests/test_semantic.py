@@ -42,7 +42,7 @@ class TestEmbedAndStore:
         params = call_args[0][1]
         assert params[0] == "notes/test.md"
         assert params[1] == _serialize(vec)
-        conn.commit.assert_called_once()
+        conn.commit.assert_not_called()
 
     def test_embed_and_store_dimension_mismatch_raises(self):
         """Provider returning wrong-length vector raises RuntimeError with clear message."""

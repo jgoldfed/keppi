@@ -124,14 +124,12 @@ def embed_all_notes(
     progress_callback: optional callable(current: int, total: int, title: str)
     Returns {"embedded": N, "skipped": N, "errors": N, "error_paths": list[str], "chunks": N}
 
-    If meta['embed_needs_rebuild'] == '1', forces full rebuild and clears the flag.
-
-    Reads note body directly from the markdown file via vault_path / nodes.path.
-    Falls back to title + headings only if the file is unreadable or empty.
-    Each note is split into overlapping chunks; each chunk gets its own embedding
-    with key "path::N". Failure on one chunk does not block other chunks or notes.
+    Processes notes in batches of 8: embed all chunks for the batch in one
+    provider call, bulk-insert with executemany, commit, then advance.
+    Progress is durable after every batch.
     """
     import json as _json
+    from keppi.search.providers import serialize_vector
 
     needs_rebuild = conn.execute(
         "SELECT value FROM meta WHERE key='embed_needs_rebuild'"
@@ -148,31 +146,25 @@ def embed_all_notes(
     except Exception:
         all_chunk_paths = set()
 
-    # Derive already-embedded note paths by stripping ::N chunk suffix
     already_notes: set[str] = set()
     for chunk_path in all_chunk_paths:
         sep = chunk_path.find("::")
         already_notes.add(chunk_path[:sep] if sep != -1 else chunk_path)
 
-    all_notes = conn.execute(
-        "SELECT path, title, headings FROM nodes"
-    ).fetchall()
+    all_notes = conn.execute("SELECT path, title, headings FROM nodes").fetchall()
 
     embedded = skipped = errors = chunks_total = 0
     error_paths: list[str] = []
-    total = len(all_notes)
+    expected_dim = provider.config.embed.dimension
 
-    for i, row in enumerate(all_notes):
+    # ── Phase 1: collect notes to embed ─────────────────────────────────
+    pending: list[tuple[str, str, list[str]]] = []  # (path, title, chunks)
+    for row in all_notes:
         path = row["path"]
-
         if not force and path in already_notes:
             skipped += 1
             continue
-
-        # Primary: read full markdown body from disk
         text = _read_note_body(vault_path, path)
-
-        # Fallback: title + headings if file is unreadable or empty
         if not text:
             headings = []
             try:
@@ -182,33 +174,104 @@ def embed_all_notes(
             text = row["title"] or ""
             if headings:
                 text += "\n" + "\n".join(str(h) for h in headings)
-
         if not text.strip():
             skipped += 1
             continue
+        pending.append((path, row["title"] or path, chunk_text(text)))
 
-        if progress_callback:
-            progress_callback(i + 1, total, row["title"] or path)
+    if not pending:
+        return {"embedded": embedded, "skipped": skipped, "errors": errors,
+                "error_paths": error_paths, "chunks": chunks_total}
 
-        # Delete old embeddings (both old-format "path" and new "path::N")
+    total_to_embed = len(pending)
+    notes_done = 0
+    note_stored: dict[str, int] = {}
+    note_errors: dict[str, int] = {}
+
+    # ── Phase 2: batch loop — embed + bulk-insert + commit per batch ─────
+    NOTES_PER_BATCH = 8
+
+    for batch_start in range(0, len(pending), NOTES_PER_BATCH):
+        batch_notes = pending[batch_start:batch_start + NOTES_PER_BATCH]
+
+        # Flatten all chunks for this batch
+        batch_flat = [
+            (path, ci, text)
+            for path, _, chunks in batch_notes
+            for ci, text in enumerate(chunks)
+        ]
+        batch_texts = [t for _, _, t in batch_flat]
+
+        # Delete stale embeddings before writing new ones
+        for path, _, _ in batch_notes:
+            try:
+                conn.execute(
+                    "DELETE FROM vec_embeddings WHERE path = ? OR path LIKE ?",
+                    (path, path + "::%"),
+                )
+            except Exception:
+                pass
+
+        # Embed all chunks in one provider call
         try:
-            conn.execute(
-                "DELETE FROM vec_embeddings WHERE path = ? OR path LIKE ?",
-                (path, path + "::%"),
+            vecs = provider.embed_batch(batch_texts)
+        except Exception:
+            vecs = [[] for _ in batch_texts]
+
+        # Build bulk-insert list; use running counter per note so bisected
+        # sub-chunks never collide with subsequent chunk keys in the same note.
+        insert_rows: list[tuple[str, bytes]] = []
+        chunk_counter: dict[str, int] = {}
+
+        for (path, _ci, text), vec in zip(batch_flat, vecs):
+            key = chunk_counter.get(path, 0)
+            if vec and len(vec) == expected_dim:
+                insert_rows.append((f"{path}::{key}", serialize_vector(vec)))
+                chunk_counter[path] = key + 1
+                note_stored[path] = note_stored.get(path, 0) + 1
+            elif not vec and len(text) > 200:
+                # Context-length failure: bisect and retry
+                mid = len(text) // 2
+                sub_chunks = [text[:mid], text[mid:]]
+                try:
+                    sub_vecs = provider.embed_batch(sub_chunks)
+                except Exception:
+                    sub_vecs = [[], []]
+                for sub_text, sub_vec in zip(sub_chunks, sub_vecs):
+                    if sub_vec and len(sub_vec) == expected_dim:
+                        insert_rows.append((f"{path}::{key}", serialize_vector(sub_vec)))
+                        key += 1
+                        note_stored[path] = note_stored.get(path, 0) + 1
+                    else:
+                        note_errors[path] = note_errors.get(path, 0) + 1
+                chunk_counter[path] = key
+            else:
+                note_errors[path] = note_errors.get(path, 0) + 1
+
+        if insert_rows:
+            conn.executemany(
+                "INSERT OR REPLACE INTO vec_embeddings (path, embedding) VALUES (?, ?)",
+                insert_rows,
             )
+        try:
             conn.commit()
         except Exception:
             pass
 
-        chunks = chunk_text(text)
-        stored, chunk_errors = _embed_with_bisection(conn, path, chunks, provider)
-        chunks_total += stored
+        notes_done += len(batch_notes)
+        if progress_callback:
+            _, last_title, _ = batch_notes[-1]
+            progress_callback(notes_done, total_to_embed, last_title)
 
+    # Tally final results
+    for path, _, _ in pending:
+        stored = note_stored.get(path, 0)
         if stored == 0:
             errors += 1
             error_paths.append(path)
         else:
             embedded += 1
+        chunks_total += stored
 
     return {
         "embedded": embedded,
