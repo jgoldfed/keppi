@@ -6,7 +6,7 @@
 
 Graph traversal for your Obsidian vault. Find the connections you built but can't follow.
 
-[![CI](https://github.com/keppi/keppi/actions/workflows/ci.yml/badge.svg)](https://github.com/keppi/keppi/actions/workflows/ci.yml)
+[![CI](https://github.com/jgoldfed/keppi/actions/workflows/ci.yml/badge.svg)](https://github.com/keppi/keppi/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/keppi)](https://pypi.org/project/keppi/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
