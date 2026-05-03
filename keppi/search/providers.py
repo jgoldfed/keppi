@@ -6,6 +6,11 @@ import struct
 from abc import ABC, abstractmethod
 
 
+class ContextLengthError(RuntimeError):
+    """Input text exceeds the model's context window — must be split further."""
+    pass
+
+
 def serialize_vector(vec: list[float]) -> bytes:
     """Pack float list to little-endian binary for sqlite-vec (float32)."""
     return struct.pack(f"{len(vec)}f", *vec)
@@ -54,24 +59,51 @@ class OllamaProvider(EmbedProvider):
     """Local Ollama embedding via HTTP API. No API key required."""
 
     def embed(self, text: str) -> list[float]:
+        import logging
+        import time
+
         import httpx
+
         base = self._base_url("http://localhost:11434")
         url = f"{base}/api/embeddings"
-        try:
-            resp = httpx.post(
-                url,
-                json={"model": self.config.embed.model, "prompt": text},
-                timeout=30.0,
-            )
-            resp.raise_for_status()
-            return resp.json()["embedding"]
-        except httpx.ConnectError:
-            raise RuntimeError(
-                f"Could not reach Ollama at {base} — "
-                f"is Ollama running? Try: ollama serve"
-            )
-        except Exception as e:
-            raise RuntimeError(f"Ollama embedding failed: {e}")
+        log = logging.getLogger("keppi.embed")
+
+        last_exc: Exception | None = None
+        for attempt in range(4):
+            if attempt:
+                time.sleep(min(2 ** attempt, 8))
+            try:
+                resp = httpx.post(
+                    url,
+                    json={
+                        "model": self.config.embed.model,
+                        "prompt": text,
+                        "options": {"num_ctx": 8192},
+                    },
+                    timeout=30.0,
+                )
+                if resp.status_code == 500:
+                    body = resp.text
+                    log.debug("Ollama 500 (attempt %d/4): %s", attempt + 1, body)
+                    if "context length" in body:
+                        raise ContextLengthError(
+                            f"Chunk too long for model context: {body[:80]}"
+                        )
+                    last_exc = RuntimeError(f"Ollama 500: {body[:120]}")
+                    continue
+                resp.raise_for_status()
+                return resp.json()["embedding"]
+            except httpx.ConnectError:
+                raise RuntimeError(
+                    f"Could not reach Ollama at {base} — "
+                    f"is Ollama running? Try: ollama serve"
+                )
+            except RuntimeError:
+                raise
+            except Exception as e:
+                last_exc = e
+
+        raise RuntimeError(f"Ollama embedding failed after 4 attempts: {last_exc}")
 
 
 class OpenAIProvider(EmbedProvider):

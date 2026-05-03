@@ -47,6 +47,38 @@ def _read_note_body(vault_path: Path, rel_path: str) -> str:
     return text.strip()
 
 
+def _embed_with_bisection(conn, path: str, chunks: list[str], provider) -> tuple[int, int]:
+    """Embed chunks, bisecting any that hit context-length limits.
+
+    Returns (chunks_stored, errors). Bisection stops when a sub-chunk is too
+    small to split further (< 200 chars), counting it as an error instead.
+    """
+    from keppi.search.providers import ContextLengthError
+    from keppi.search.semantic import embed_and_store
+
+    stored = errors = 0
+    pending = list(chunks)
+    key = 0
+
+    while pending:
+        text = pending.pop(0)
+        try:
+            embed_and_store(conn, f"{path}::{key}", text, provider)
+            key += 1
+            stored += 1
+        except ContextLengthError:
+            if len(text) <= 200:
+                errors += 1
+            else:
+                mid = len(text) // 2
+                pending.insert(0, text[mid:])
+                pending.insert(0, text[:mid])
+        except Exception:
+            errors += 1
+
+    return stored, errors
+
+
 def embed_all_notes(
     conn: sqlite3.Connection,
     provider,
@@ -138,16 +170,10 @@ def embed_all_notes(
             pass
 
         chunks = chunk_text(text)
-        chunk_errors = 0
-        from keppi.search.semantic import embed_and_store
-        for ci, chunk in enumerate(chunks):
-            try:
-                embed_and_store(conn, f"{path}::{ci}", chunk, provider)
-                chunks_total += 1
-            except Exception:
-                chunk_errors += 1
+        stored, chunk_errors = _embed_with_bisection(conn, path, chunks, provider)
+        chunks_total += stored
 
-        if chunk_errors == len(chunks):
+        if stored == 0:
             errors += 1
             error_paths.append(path)
         else:
