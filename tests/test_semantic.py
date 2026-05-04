@@ -90,13 +90,13 @@ class TestSemanticSearch:
         results = semantic_search(conn, "test query", provider)
         assert results == []
 
-    def test_semantic_search_path_prefix_filters(self):
-        """path_prefix restricts results to notes whose path starts with the prefix."""
+    def test_semantic_search_subfolder_filters(self):
+        """subfolder restricts results to notes whose path starts with the prefix."""
         from keppi.search.semantic import semantic_search
 
         knn_result = MagicMock()
         knn_result.fetchall.return_value = [
-            _FakeRow({"path": "3-Resources/wiki/Topic.md::0", "distance": 0.1}),
+            _FakeRow({"path": "wiki/Topic.md::0", "distance": 0.1}),
             _FakeRow({"path": "0-Inbox/Note.md::0", "distance": 0.2}),
         ]
         title_result = MagicMock()
@@ -106,20 +106,20 @@ class TestSemanticSearch:
         conn.execute.side_effect = [knn_result, title_result]
 
         provider = _make_provider([0.1] * 4)
-        results = semantic_search(conn, "query", provider, limit=5, path_prefix="3-Resources/wiki/")
+        results = semantic_search(conn, "query", provider, limit=5, subfolder="wiki/")
 
         assert len(results) == 1
-        assert results[0].path == "3-Resources/wiki/Topic.md"
+        assert results[0].path == "wiki/Topic.md"
 
-    def test_semantic_search_no_prefix_returns_all(self):
-        """path_prefix=None returns results from all paths."""
+    def test_semantic_search_no_subfolder_returns_all(self):
+        """subfolder=None returns results from all paths."""
         from keppi.search.semantic import semantic_search
 
         conn = MagicMock()
         conn.execute.return_value.fetchall.return_value = []
 
         provider = _make_provider([0.1] * 4)
-        results = semantic_search(conn, "query", provider, limit=5, path_prefix=None)
+        results = semantic_search(conn, "query", provider, limit=5, subfolder=None)
         assert results == []
 
     def test_semantic_search_deduplicates_chunks(self):

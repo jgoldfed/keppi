@@ -154,7 +154,7 @@ Review mode: [a]ccept all | [s]kip | [i]nteractive (one-by-one) [i]: i
   d = show diff (preview frontmatter change)
 
 > Y
-✅ Updated: 3-Resources/wiki/entities/Data Platform Migration.md
+✅ Updated: wiki/entities/Data Platform Migration.md
 
 2/847: Add [[Data Pipeline]], [[Cloud DB]] as wikilinks in Cloud Analytics note? [Y/n/e/d]
 > e
@@ -220,7 +220,7 @@ keppi connect --dry-run
 
 # Limit to specific notes
 keppi connect --note "Data Platform Migration"
-keppi connect --note "3-Resources/wiki/entities/*"
+keppi connect --note "wiki/entities/*"
 
 # Limit to specific connection types
 keppi connect --type related_to    # frontmatter only
@@ -246,7 +246,7 @@ The JSON format enables MCP integration:
 {
   "suggestions": [
     {
-      "source": "3-Resources/wiki/entities/Data Platform Migration.md",
+      "source": "wiki/entities/Data Platform Migration.md",
       "target_title": "Job Search",
       "target_path": "projects/Job Search.md",
       "strategy": "related_to",
@@ -259,7 +259,7 @@ The JSON format enables MCP integration:
     {
       "source": "wiki/entities/Cloud Analytics.md",
       "target_title": "Data Pipeline",
-      "target_path": "3-Resources/wiki/concepts/Data Pipeline.md",
+      "target_path": "wiki/concepts/Data Pipeline.md",
       "strategy": "wikilink",
       "score": 0.72,
       "reasons": ["title mentioned in body text", "tag overlap: data, cloud"],

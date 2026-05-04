@@ -1,7 +1,7 @@
 ---
 name: wiki-search
 description: >
-  Fast, token-efficient vault research using the Karpathy wiki layer (3-Resources/wiki/)
+  Fast, token-efficient vault research using a dedicated wiki subfolder
   as the primary fast path, with obsidian search and Keppi MCP tools as fallback. Use
   this INSTEAD of vault-research when the question involves a known entity, person,
   project, concept, or relationship that is likely already synthesized in the wiki.
@@ -88,7 +88,7 @@ Desktop Commander:start_process
 | Read note (no spaces)   | `obsidian read file=NoteName`                       |
 | Read note (with spaces) | `obsidian read 'file=Note Name'`                    |
 | Search vault            | `obsidian search 'query=search terms' limit=5`     |
-| Read by exact path      | `obsidian read 'path=3-Resources/wiki/entities/Dan Goodman.md'` |
+| Read by exact path      | `obsidian read 'path=wiki/entities/Jane Smith.md'` |
 
 **Filenames with spaces:** Use single-quoted arguments in PowerShell.
 `'file=Note Name'` not `file="Note Name"`.
@@ -112,7 +112,7 @@ If `ready_for_semantic_search` is false, skip to Step 1 (keyword search).
 ```
 keppi:semantic_search(
     query="<natural language description of what you need>",
-    wiki_only=True,
+    subfolder="<your-wiki-subfolder>",
     limit=5
 )
 ```
@@ -151,7 +151,7 @@ Nothing? **Skip to Step 3.**
 Single-word names:
 ```
 Desktop Commander:start_process
-  command: obsidian read file=DGEA
+  command: obsidian read file=Acme
   shell: powershell.exe
   timeout_ms: 8000
 ```
@@ -159,12 +159,12 @@ Desktop Commander:start_process
 Names with spaces — search first, then read by path:
 ```
 Desktop Commander:start_process
-  command: obsidian search 'query=Dan Goodman' limit=1
+  command: obsidian search 'query=Jane Smith' limit=1
   shell: powershell.exe
   timeout_ms: 8000
 
 Desktop Commander:start_process
-  command: obsidian read path=3-Resources/wiki/entities/Dan Goodman.md
+  command: obsidian read path=wiki/entities/Jane Smith.md
   shell: powershell.exe
   timeout_ms: 8000
 ```
@@ -210,7 +210,7 @@ keppi:keyword_search(query="<topic keywords>", limit=5)
 ```
 
 Check results:
-- **Any hits are wiki pages** (path starts with `3-Resources/wiki/`)? → Read them via
+- **Any hits are wiki pages** (path starts with your wiki subfolder)? → Read them via
   obsidian CLI. Question answered? **Done.**
 - **Any hits are raw notes?** → Read the most relevant. Question answered?
   **Go to Step 6 — promote.**
@@ -241,8 +241,8 @@ The search path IS the signal. If you had to dig, promote.
 
 **How to promote:**
 1. Identify the 1-3 key facts that made you leave the fast lane
-2. Find (or create) the relevant wiki page in `3-Resources/wiki/entities/` or
-   `3-Resources/wiki/concepts/`
+2. Find (or create) the relevant wiki page in your wiki subfolder (e.g. `wiki/entities/` or
+   `wiki/concepts/`)
 3. Add a concise section: `## Pricing`, `## Key Dates`, `## Status`, etc.
 4. Add a wikilink to the source: `Source: [[Source Note Name]]`
 5. Update the `sources:` frontmatter list to include the source note
@@ -251,14 +251,14 @@ The search path IS the signal. If you had to dig, promote.
 **Result:** Next query on this topic resolves in a single wiki read (~400 tokens)
 instead of 2-8 tool calls and 3,000-16,000 tokens.
 
-**Example:** You asked "What does Dan Goodman charge?" and had to read a raw email
-note to find pricing. Promote a pricing section to the `Dan Goodman` wiki page:
+**Example:** You asked "What does Acme Corp charge?" and had to read a raw email
+note to find pricing. Promote a pricing section to the `Acme Corp` wiki page:
 
 ```markdown
-## DGEA Pricing
-- **Contingency Model:** $1,500 flat + 18% of severance improvement
-- **Consultations:** 15min/$135, 30min/$225, 60min/$375
-- Source: [[Pricing Information from Dan Goodman (DGEA)]]
+## Acme Corp Pricing
+- **Retainer:** $5,000/month
+- **Project Rate:** $250/hour
+- Source: [[Pricing Email from Acme Corp]]
 ```
 
 Next time, the wiki fast lane answers it in one read.

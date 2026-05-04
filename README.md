@@ -200,14 +200,14 @@ For other MCP clients, use `keppi mcp-server /path/to/vault` and configure manua
 
 | Tool | What it does |
 |------|-------------|
-| `semantic_search` | Vector KNN search by meaning. Supports `wiki_only=True` to scope results to `3-Resources/wiki/`. Returns deduplicated note-level results (best chunk per note) with path, title, and distance. |
+| `semantic_search` | Vector KNN search by meaning. Supports `subfolder` parameter to scope results to any subdirectory. Returns deduplicated note-level results (best chunk per note) with path, title, and distance. |
 | `get_embed_status` | Returns embedding coverage %, `total_chunks`, `ready_for_semantic_search` bool, and action guidance for the AI assistant. |
 
 ### Agent Skills
 
 Keppi ships two agent skills for structured research workflows:
 
-- **wiki-search** — Fast path: semantic pre-check → wiki layer (~400-600 tokens) → Keppi graph navigation. The semantic pre-check (`get_embed_status` + `semantic_search(wiki_only=True)`) resolves most queries in a single read without any keyword guessing. Best for known entities, people, projects, and relationships.
+- **wiki-search** — Fast path: semantic pre-check → wiki layer (~400-600 tokens) → Keppi graph navigation. The semantic pre-check (`get_embed_status` + `semantic_search(subfolder="<your-wiki-dir>")`) resolves most queries in a single read without any keyword guessing. Best for known entities, people, projects, and relationships.
 - **vault-research** — Deep path: comprehensive multi-note analysis using blast radius, context packs, and raw note reads. Uses semantic search as the primary entry-point finder, falling back to keyword search only when embeddings aren't available. Best for evidence retrieval from meeting transcripts or questions requiring 4+ source notes.
 
 Both skills are in the `skills/` directory and can be added to any MCP-compatible AI assistant.

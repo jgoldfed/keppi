@@ -102,7 +102,7 @@ Every parsed markdown file becomes a node with:
 
 | Property | Source | Example |
 |----------|--------|---------|
-| `id` | File path (relative to vault root) | `3-Resources/wiki/entities/Meridian Partners.md` |
+| `id` | File path (relative to vault root) | `wiki/entities/Meridian Partners.md` |
 | `title` | First H1 or filename | `Meridian Partners` |
 | `type` | Frontmatter `type` field (if exists) | `entity` |
 | `subtype` | Frontmatter `subtype` field (if exists) | `company` |

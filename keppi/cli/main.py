@@ -693,7 +693,7 @@ def semantic_search(
     query: str = typer.Argument(..., help="Natural language search query"),
     vault: Optional[str] = typer.Argument(None, help="Vault directory"),
     limit: int = typer.Option(10, "--limit", "-n", help="Maximum results"),
-    wiki_only: bool = typer.Option(False, "--wiki-only", help="Restrict to 3-Resources/wiki/"),
+    subfolder: Optional[str] = typer.Option(None, "--subfolder", help="Restrict to a subfolder (e.g. 'wiki' or 'projects/active')"),
 ) -> None:
     """Semantic vector search — finds notes by meaning, not just keywords."""
     from keppi.graph.storage import ensure_vec_table, open_db
@@ -741,10 +741,10 @@ def semantic_search(
         conn.close()
         raise typer.Exit(1)
 
-    path_prefix = "3-Resources/wiki/" if wiki_only else None
+    search_subfolder = subfolder or config.vault.wiki_subfolder or None
 
     try:
-        results = _search(conn, query, provider, limit=limit, path_prefix=path_prefix)
+        results = _search(conn, query, provider, limit=limit, subfolder=search_subfolder)
     except RuntimeError as e:
         err = str(e)
         if "Ollama" in err or "localhost:11434" in err:

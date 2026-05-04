@@ -57,7 +57,7 @@ def semantic_search(
     provider,
     *,
     limit: int = 10,
-    path_prefix: Optional[str] = None,
+    subfolder: Optional[str] = None,
 ) -> list[SemanticResult]:
     """
     KNN semantic search with per-note deduplication. Returns [] gracefully if
@@ -67,7 +67,7 @@ def semantic_search(
     deduplicated by keeping the lowest distance. Old-format keys without ::N
     are handled transparently (treated as the full note path).
 
-    path_prefix restricts results to notes whose path starts with this string.
+    subfolder restricts results to notes whose path starts with this string.
     """
     from keppi.search.providers import serialize_vector
 
@@ -93,7 +93,7 @@ def semantic_search(
             sep = chunk_path.find("::")
             note_path = chunk_path[:sep] if sep != -1 else chunk_path
 
-            if path_prefix and not note_path.startswith(path_prefix):
+            if subfolder and not note_path.startswith(subfolder):
                 continue
 
             dist = row["distance"]

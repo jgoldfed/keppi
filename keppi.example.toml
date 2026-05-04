@@ -20,6 +20,11 @@ exclude_dirs = [
     # "Navigation-Hubs-archived",  # Uncomment if you have archived hubs
 ]
 
+# Subfolder containing your distilled/wiki notes (used as default scope for semantic search).
+# Leave empty to search the full vault by default.
+# Example: wiki_subfolder = "wiki"
+wiki_subfolder = ""
+
 # File patterns to skip (glob syntax)
 exclude_patterns = [
     "*.excalidraw.md",  # Excalidraw drawings (binary-like)

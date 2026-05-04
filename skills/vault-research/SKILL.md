@@ -200,7 +200,7 @@ Read by exact vault-relative path (also handles spaces correctly in PowerShell):
 
 ```
 Desktop Commander:start_process
-  command: obsidian read path=1-Projects/DGEA/Some Note With Spaces.md
+  command: obsidian read path=1-Projects/Acme/Some Note With Spaces.md
   shell: powershell.exe
   timeout_ms: 10000
 ```
@@ -214,7 +214,7 @@ Example:
 
 ```
 Desktop Commander:read_file
-  path: C:\Users\username\Documents\Obsidian Vault\1-Projects\DGEA\2025-12-16 Meeting.md
+  path: C:\Users\username\Documents\Obsidian Vault\1-Projects\Acme\2025-12-16 Meeting.md
 ```
 
 The exact relative path comes from the `path` field in keppi search/blast_radius results.
@@ -244,8 +244,8 @@ their own, promote them. The wiki is a queryable facts layer, not a summary laye
 
 **How to promote:**
 1. After synthesizing your answer, identify the 1-3 key facts that required raw note reads
-2. Find (or create) the relevant wiki page in `3-Resources/wiki/entities/` or
-   `3-Resources/wiki/concepts/`
+2. Find (or create) the relevant wiki page in your wiki subfolder (e.g. `wiki/entities/` or
+   `wiki/concepts/`)
 3. Add a concise section: `## Pricing`, `## Key Dates`, `## Status`, etc.
 4. Add a wikilink to each source note: `Source: [[Source Note Name]]`
 5. Update the `sources:` frontmatter list to include the source note
@@ -276,7 +276,7 @@ Desktop Commander:start_process
 | Read wiki index         | `obsidian read file=index`                          |
 | Read note (no spaces)   | `obsidian read file=NoteName`                       |
 | Read note (with spaces) | `obsidian read 'file=Note Name'`                    |
-| Read by exact path      | `obsidian read 'path=1-Projects/DGEA/Note Name.md'` |
+| Read by exact path      | `obsidian read 'path=1-Projects/Acme/Note Name.md'` |
 | Search vault            | `obsidian search 'query=search terms' limit=5`     |
 
 ---
@@ -285,7 +285,7 @@ Desktop Commander:start_process
 
 | Tool                   | Use                                          | Performance                                                        |
 | ---------------------- | -------------------------------------------- | ------------------------------------------------------------------ |
-| `keppi:semantic_search` | Find notes by meaning, not keywords. `wiki_only=True` for wiki fast lane | Fast — 1 call replaces 2-3 keyword iterations |
+| `keppi:semantic_search` | Find notes by meaning, not keywords. Pass `subfolder=` to scope to your wiki directory | Fast — 1 call replaces 2-3 keyword iterations |
 | `keppi:get_embed_status` | Check embedding coverage before semantic search | Always call first if unsure whether embeddings are built |
 | `keppi:keyword_search` | Find entry-point notes by keyword            | Fast — use limit=5                                                 |
 | `keppi:blast_radius`   | Map structural connections from a seed note  | Moderate                                                           |

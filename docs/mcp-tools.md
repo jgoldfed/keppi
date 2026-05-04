@@ -129,8 +129,7 @@ Vector KNN search — finds notes by meaning, not keywords. Handles chunked note
 **Parameters:**
 - `query` (str) — Natural language query
 - `limit` (int, default 10) — Max results after deduplication
-- `wiki_only` (bool, default false) — Restrict to `3-Resources/wiki/`
-- `path_prefix` (str, optional) — Restrict to any subdirectory prefix
+- `subfolder` (str, optional) — Restrict to a subdirectory (e.g. `"wiki"` or `"projects/active"`). Falls back to `wiki_subfolder` in `keppi.toml` if not specified.
 - `vault_path` (str, optional)
 
 **Returns:**

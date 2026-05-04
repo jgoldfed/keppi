@@ -198,17 +198,17 @@ keppi embed --force            # Full rebuild (use after changing models)
 └─────────┴───────┘
 ```
 
-### `keppi semantic-search <query> [vault] [--limit N] [--wiki-only]`
+### `keppi semantic-search <query> [vault] [--limit N] [--subfolder PATH]`
 Meaning-based vector search. Finds conceptually related notes even when exact keywords don't match. Results are deduplicated per note — a single note appears at most once, at its best-matching chunk distance.
 
 - `--limit` (default 10) — Maximum results
-- `--wiki-only` — Restrict to `3-Resources/wiki/`
+- `--subfolder PATH` — Restrict to a subfolder (e.g. `wiki` or `projects/active`). Falls back to `wiki_subfolder` in `keppi.toml` if not specified.
 
 Requires embeddings to be built (`keppi embed`).
 
 ```bash
 keppi semantic-search "consequences of leaving a job"
-keppi semantic-search "data quality patterns" --wiki-only
+keppi semantic-search "data quality patterns" --subfolder wiki
 keppi semantic-search "career planning" --limit 20
 ```
 

@@ -19,6 +19,7 @@ class VaultConfig:
     file_extensions: list[str] = field(default_factory=lambda: [".md"])
     exclude_dirs: list[str] = field(default_factory=lambda: [".obsidian", ".git", "templates", ".trash"])
     exclude_patterns: list[str] = field(default_factory=lambda: ["*.excalidraw.md"])
+    wiki_subfolder: str = ""
 
 
 @dataclass
@@ -219,6 +220,7 @@ path = "."
 file_extensions = [".md"]
 exclude_dirs = [".obsidian", ".git", "templates", ".trash"]
 exclude_patterns = ["*.excalidraw.md"]
+wiki_subfolder = ""
 
 [frontmatter]
 type_field = "type"

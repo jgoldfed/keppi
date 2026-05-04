@@ -18,8 +18,9 @@ mcp = FastMCP(
         "Keppi gives you graph-aware and semantic access to a knowledge vault. "
         "SEARCH STRATEGY: "
         "(1) Call get_embed_status() once to check if semantic search is ready. "
-        "(2) Use semantic_search(wiki_only=True) as your first search — it finds "
-        "wiki pages by meaning, not exact keywords. One call replaces 2-3 keyword attempts. "
+        "(2) Use semantic_search() as your first search — it finds notes by meaning, not exact keywords. "
+        "Pass subfolder='<name>' to scope the search to a specific directory. "
+        "One call replaces 2-3 keyword attempts. "
         "(3) Fall back to keyword_search only if semantic returns no strong results (distance > 0.5). "
         "Use context_pack to build a token-budgeted reading set for deep research. "
         "Use blast_radius to trace structural impact of a concept change. "
@@ -300,8 +301,7 @@ def context_pack(topic: str, token_budget: int = 4000, depth: int = 2, vault_pat
 def semantic_search(
     query: str,
     limit: int = 10,
-    wiki_only: bool = False,
-    path_prefix: str = "",
+    subfolder: str = "",
     vault_path: str = ".",
 ) -> dict[str, Any]:
     """
@@ -310,10 +310,8 @@ def semantic_search(
     USE THIS BEFORE keyword_search. It understands meaning and synonyms —
     one call replaces 2-3 trial-and-error keyword searches.
 
-    wiki_only=True: restrict to 3-Resources/wiki/ (concepts, entities, syntheses).
-    This is the recommended starting point — scoped to your most distilled knowledge.
-
-    path_prefix: restrict to any specific subdirectory.
+    subfolder: restrict to any specific subdirectory (e.g. "wiki", "projects/active").
+    Leave empty to search the full vault.
 
     Distance interpretation:
     - < 0.3 (strong): high confidence match — read this note first
@@ -348,11 +346,11 @@ def semantic_search(
     from keppi.search.providers import get_provider
     from keppi.search.semantic import semantic_search as _search
 
-    prefix = "3-Resources/wiki/" if wiki_only else (path_prefix or None)
+    search_subfolder = subfolder or config.vault.wiki_subfolder or None
 
     try:
         provider = get_provider(config)
-        results = _search(conn, query, provider, limit=limit, path_prefix=prefix)
+        results = _search(conn, query, provider, limit=limit, subfolder=search_subfolder)
     except Exception as e:
         return {"error": f"Semantic search failed: {e}"}
 
@@ -366,21 +364,11 @@ def semantic_search(
         for r in results
     ]
 
-    hint = None
-    if wiki_only and len(results) > 0:
-        hint = (
-            "If these results answered your question, promote key facts "
-            "to the relevant wiki page with source citations. "
-            "This reduces future token cost and makes the answer "
-            "available via wiki_only=True in one call."
-        )
-
     return {
         "count": len(results),
         "query": query,
-        "scope": prefix or "full vault",
+        "scope": search_subfolder or "full vault",
         "results": result_list,
-        **({"hint": hint} if hint else {}),
     }
 
 
