@@ -25,6 +25,8 @@ The missing piece isn't the wiki itself. It's the **query layer**. Similarity se
 
 **Keppi builds the graph that makes the wiki queryable at scale.** It parses every wikilink, tag, frontmatter field, and folder relationship into a weighted directed graph, then answers: "Given this topic, what's the minimal set of notes I need — and how are they connected?"
 
+Read more about the [thinking behind Keppi](https://www.linkedin.com/pulse/thinking-partner-your-notes-jarrett-goldfedder-myyie).
+
 ## The Problem
 
 Most knowledge bases are disconnected. Notes sit in folders with a few wikilinks and tags, but no real structure. You can't see what's connected, what's broken, or what's missing.
@@ -38,7 +40,7 @@ Broken links: 792
 Orphans:      5
 ```
 
-792 broken links. 5 orphan notes. A pile of tag overlaps masquerading as connections.That's a knowledge base where you can't trust what you find.
+792 broken links. 5 orphan notes. A pile of tag overlaps masquerading as connections. That's a knowledge base where you can't trust what you find.
 
 **After Keppi:**
 
@@ -78,9 +80,9 @@ That's not search. That's **knowing which notes matter** for a decision you're a
 Karpathy's LLM Wiki has three layers: raw sources → wiki → schema. The missing piece is the **graph layer** between wiki and query.
 
 ```
-Raw Sources  →  Wiki  →       ┌─────────────┐  →  Context Pack
-  (immutable)   (LLM-owned)   │ Keppi Graph │     (for AI)
-                              └─────────────┘
+Raw Sources  →  Wiki  →      ┌─────────────┐  →  Context Pack
+  (immutable)   (LLM-owned)  │ Keppi Graph │     (for AI)
+                             └─────────────┘
                                     │
                           ┌─────────┼──────────┐
                           │         │          │
