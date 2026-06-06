@@ -1,0 +1,20 @@
+{
+  "name": "keppi-mcp",
+  "version": "1.0.0",
+  "description": "MCP server exposing Keppi knowledge graph CLI as tools",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "npx tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.3",
+    "tsx": "^4.19.0"
+  }
+}
