@@ -286,10 +286,16 @@ _EMOJI_HEADING_PREFIXES = (
     "🏠", "💼", "🚀", "⚙️", "🛠", "📚", "🎓", "🔔", "📍",
 )
 
-# Generic placeholder names from templates
+# Generic placeholder names from templates and schema docs
 _PLACEHOLDER_NAMES = frozenset({
     "Summary", "Notes", "Meetings", "Note", "Notes and Thoughts",
     "Clippings", "Source 1",
+    # wiki-ops.md schema examples
+    "Concept A", "Concept B", "Concept A vs Concept B",
+    "Related Concept", "Source A", "Source Name",
+    "Does Scale Improve Reasoning?",
+    # wiki-ops.md / index.md structural references
+    "Wikilinks", "wikilinks", "double bracket",
 })
 
 

@@ -14,7 +14,7 @@ import frontmatter
 # Wikilinks: [[Note]], [[Note|Alias]], [[Note#Section]], [[Note#^block]]
 # Embeds must be matched BEFORE wikilinks so we don't double-count
 EMBED_RE = re.compile(r'!\[\[([^\]]+)\]\]')
-WIKILINK_RE = re.compile(r'(?<!!)(?<!\[)\[\[([^\]]+)\]\]')
+WIKILINK_RE = re.compile(r'(?<!!)(?<!\[)\[\[([^\]\n]+)\]\]')
 INLINE_TAG_RE = re.compile(r'(?:^|\s)#([a-zA-Z][\w/-]*)', re.MULTILINE)
 HEADING_RE = re.compile(r'^(#{1,6})\s+(.+)$', re.MULTILINE)
 # Wikilinks in frontmatter related_to: "[[Note Name]]"
@@ -133,11 +133,18 @@ def parse_note(
     # Remove any remaining | alias parts from title
     title = title.split("|")[0].strip()
 
+    # Strip code blocks (```...```) and inline code (`...`) before extracting wikilinks
+    # so that pandas double-bracket syntax like df[[c for c in ...]] isn't parsed as wikilinks
+    _code_block_re = re.compile(r'```[\s\S]*?```', re.MULTILINE)
+    _inline_code_re = re.compile(r'`[^`\n]+`')
+    _body_for_links = _code_block_re.sub('', body_text)
+    _body_for_links = _inline_code_re.sub('', _body_for_links)
+
     # Embeds first, then wikilinks (so embeds don't appear in wikilinks)
     embed_targets = [_strip_link_extras(m.group(1)) for m in EMBED_RE.finditer(body_text)]
     embed_set = set(embed_targets)
 
-    raw_wikilinks = [_strip_link_extras(m.group(1)) for m in WIKILINK_RE.finditer(body_text)]
+    raw_wikilinks = [_strip_link_extras(m.group(1)) for m in WIKILINK_RE.finditer(_body_for_links)]
     # Filter out targets that are embeds (already captured above)
     wikilinks = [w for w in raw_wikilinks if w not in embed_set]
     # Filter out code/template fragments (dataviewjs expressions, shell vars, etc.)
@@ -152,6 +159,15 @@ def parse_note(
     )]
     # Filter out targets that start with special chars (code artifacts)
     wikilinks = [w for w in wikilinks if not w.startswith(("\"", "-z "))]
+    # Filter out Python/pandas expressions that look like wikilinks (e.g. df[[c for c in ...]])
+    wikilinks = [w for w in wikilinks if not any(
+        kw in w for kw in (" for ", " in ", "if ", "else ", "lambda ", "def ", "import ",
+        "return ", "yield ", "class ", "print(", "len(", "range(",
+    ))]
+    # Filter out targets that look like Python expressions (contain common operators)
+    wikilinks = [w for w in wikilinks if not any(op in w for op in ("= ", "==", "!=", ">=", "<="))]
+    # Filter out targets containing typical code patterns (function calls, list comprehensions)
+    wikilinks = [w for w in wikilinks if not re.search(r'\w+\(', w)]
     # Filter out generic placeholder names used in templates/examples
     _placeholder_names = {
         "Other Page", "Another Page", "Source Note", "Entity Name",
@@ -162,6 +178,15 @@ def parse_note(
         "Another-Note", "Related-Note-1", "Related-Note-2",
         "Wikilinks", "wikilinks", "double bracket",
         "redirects", "attachments", "templates",
+        # wiki-ops.md schema examples
+        "Concept A", "Concept B", "Concept A vs Concept B",
+        "Related Concept", "Source A", "Source Name",
+        "Does Scale Improve Reasoning?",
+        # Daily note template headings parsed as wikilinks
+        "Timeline", "What Went Well", "What actually went wrong",
+        # Copilot conversation section headings
+        "Option 1: Add as a Separate \"Detailed Activity Log\" Section",
+        "Scenario A: If \"OpenClaw\" is your Software/Coding Project",
     }
     wikilinks = [w for w in wikilinks if w not in _placeholder_names]
 
