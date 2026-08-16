@@ -20,6 +20,18 @@ class AffectedNote:
 # Edge types that represent real structural connections (explicit references)
 STRUCTURAL_EDGE_TYPES = frozenset({"wikilink", "related_to", "embed", "semantic_similarity"})
 
+# Generic/template titles that act as connector pages — they link to everything
+# and create false paths. Excluded from path-finding and tag edge generation.
+GENERIC_TITLES = frozenset({
+    "Summary", "Notes", "Meetings", "Note", "Notes and Thoughts",
+    "Clippings", "Source 1", "Introduction", "Home",
+    "See also", "References", "Overview",
+    "Concept A", "Concept B", "Concept A vs Concept B",
+    "Related Concept", "Source A", "Source Name",
+    "Does Scale Improve Reasoning?",
+    "Wikilinks", "wikilinks", "double bracket",
+})
+
 
 def compute_blast_radius(
     graph: nx.DiGraph,

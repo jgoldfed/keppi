@@ -252,12 +252,14 @@ def find_path(source: str, target: str, vault_path: str = ".") -> dict[str, Any]
         return {"error": f"Note not found: {target!r}"}
 
     try:
-        # Structural-only path by default — tag_overlap creates false bridges
-        structural_types = {"wikilink", "related_to", "embed", "semantic_similarity"}
+        # Structural-only path, excluding generic-title connector pages
+        from keppi.analysis.blast_radius import GENERIC_TITLES, STRUCTURAL_EDGE_TYPES
         structural = nx.Graph()
-        structural.add_nodes_from(_real_nodes(graph))
+        for n in _real_nodes(graph):
+            if graph.nodes[n].get("title", "") not in GENERIC_TITLES:
+                structural.add_node(n)
         for u, v, d in graph.edges(data=True):
-            if d.get("type") in structural_types:
+            if d.get("type") in STRUCTURAL_EDGE_TYPES and u in structural and v in structural:
                 structural.add_edge(u, v)
         path_nodes = nx.shortest_path(structural, src_node, dst_node)
     except nx.NetworkXNoPath:
@@ -696,12 +698,14 @@ def get_surprising_connections(top_n: int = 10, vault_path: str = ".") -> dict[s
     # Surprising = high score but not already linked, filtered to distant pairs
     results = _suggest(graph, source=None, top_n=top_n * 3, min_score=0.5)
 
-    # Build structural-only graph for distance computation
-    structural_types = {"wikilink", "related_to", "embed", "semantic_similarity"}
+    # Build structural-only graph for distance computation, excluding generic titles
+    from keppi.analysis.blast_radius import GENERIC_TITLES, STRUCTURAL_EDGE_TYPES
     structural = nx.Graph()
-    structural.add_nodes_from(_real_nodes(graph))
+    for n in _real_nodes(graph):
+        if graph.nodes[n].get("title", "") not in GENERIC_TITLES:
+            structural.add_node(n)
     for u, v, d in graph.edges(data=True):
-        if d.get("type") in structural_types:
+        if d.get("type") in STRUCTURAL_EDGE_TYPES and u in structural and v in structural:
             structural.add_edge(u, v)
 
     surprising = []

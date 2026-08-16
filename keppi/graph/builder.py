@@ -414,18 +414,10 @@ class GraphBuilder:
         min_jaccard = 0.15  # skip weak tag-only overlaps
         max_edges_per_node = 20  # cap to prevent hub explosion
 
-        # Generic titles that shouldn't generate tag_overlap edges — they share
-        # common tags (#summary, #meeting) and create false bridges between
-        # unrelated notes
-        generic_titles = frozenset({
-            "Summary", "Notes", "Meetings", "Note", "Notes and Thoughts",
-            "Clippings", "Source 1", "Introduction", "Home",
-            "See also", "References", "Overview",
-            "Concept A", "Concept B", "Concept A vs Concept B",
-            "Related Concept", "Source A", "Source Name",
-            "Does Scale Improve Reasoning?",
-            "Wikilinks", "wikilinks", "double bracket",
-        })
+        # Generic titles excluded from tag edge generation — they share common
+        # tags (#summary, #meeting) and create false bridges between unrelated notes
+        from keppi.analysis.blast_radius import GENERIC_TITLES
+        generic_titles = GENERIC_TITLES
 
         # Build tag → [paths] index, excluding generic-title notes
         tag_index: dict[str, list[str]] = {}

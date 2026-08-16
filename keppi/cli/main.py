@@ -1148,12 +1148,17 @@ def path(
         conn.close()
         raise typer.Exit(1)
 
-    # Structural-only path by default — tag_overlap creates false bridges
-    structural_types = {"wikilink", "related_to", "embed", "semantic_similarity"}
+    # Structural-only path, excluding generic-title connector pages
+    from keppi.analysis.blast_radius import GENERIC_TITLES, STRUCTURAL_EDGE_TYPES
     undirected = nx.Graph()
-    undirected.add_nodes_from(n for n in graph.nodes if not str(n).startswith("__broken__"))
+    for n in graph.nodes:
+        if str(n).startswith("__broken__"):
+            continue
+        if graph.nodes[n].get("title", "") in GENERIC_TITLES:
+            continue
+        undirected.add_node(n)
     for u, v, d in graph.edges(data=True):
-        if d.get("type") in structural_types:
+        if d.get("type") in STRUCTURAL_EDGE_TYPES and u in undirected and v in undirected:
             undirected.add_edge(u, v)
     try:
         shortest = nx.shortest_path(undirected, src_node, tgt_node)
