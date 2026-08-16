@@ -406,18 +406,34 @@ class GraphBuilder:
     def compute_tag_edges(self) -> None:
         """Add tag_overlap edges between notes sharing tags (after all notes added).
 
-        Filters: minimum Jaccard threshold (0.15) and per-node cap (top 20 edges).
-        This prevents common tags like #dailynotes from creating massive cliques
-        that drown out structural edges.
+        Filters: minimum Jaccard threshold (0.15), per-node cap (top 20 edges),
+        and generic-title exclusion (notes titled "Summary", "Notes", etc. don't
+        generate tag edges — they share generic tags and create false bridges).
         """
         weight = self.config.graph.tag_overlap_weight
         min_jaccard = 0.15  # skip weak tag-only overlaps
         max_edges_per_node = 20  # cap to prevent hub explosion
 
-        # Build tag → [paths] index
+        # Generic titles that shouldn't generate tag_overlap edges — they share
+        # common tags (#summary, #meeting) and create false bridges between
+        # unrelated notes
+        generic_titles = frozenset({
+            "Summary", "Notes", "Meetings", "Note", "Notes and Thoughts",
+            "Clippings", "Source 1", "Introduction", "Home",
+            "See also", "References", "Overview",
+            "Concept A", "Concept B", "Concept A vs Concept B",
+            "Related Concept", "Source A", "Source Name",
+            "Does Scale Improve Reasoning?",
+            "Wikilinks", "wikilinks", "double bracket",
+        })
+
+        # Build tag → [paths] index, excluding generic-title notes
         tag_index: dict[str, list[str]] = {}
         real_nodes = [n for n in self.graph.nodes if not str(n).startswith("__broken__")]
         for node in real_nodes:
+            title = self.graph.nodes[node].get("title", "")
+            if title in generic_titles:
+                continue
             data = self.graph.nodes[node]
             tags = json.loads(data.get("tags", "[]"))
             for tag in tags:
