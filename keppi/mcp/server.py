@@ -637,7 +637,9 @@ def suggest_links(note: str = "", top_n: int = 10, min_score: float = 0.3, vault
         "suggestions": [
             {
                 "source": r.source_title,
+                "source_path": r.source_path,
                 "target": r.target_title,
+                "target_path": r.target_path,
                 "score": r.score,
                 "reasons": r.reasons,
             }

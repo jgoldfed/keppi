@@ -4,8 +4,19 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import networkx as nx
+
+# Generic/template titles that produce useless suggestions when paired
+_PLACEHOLDER_TITLES = frozenset({
+    "Summary", "Notes", "Meetings", "Note", "Notes and Thoughts",
+    "Clippings", "Source 1", "Introduction", "Home",
+    "Concept A", "Concept B", "Concept A vs Concept B",
+    "Related Concept", "Source A", "Source Name",
+    "Does Scale Improve Reasoning?",
+    "Wikilinks", "wikilinks", "double bracket",
+})
 
 
 @dataclass
@@ -73,6 +84,18 @@ def _score_pairs(
         if graph.has_edge(a, b) or graph.has_edge(b, a):
             continue
 
+        # Skip same-folder pairs — already co-located, no link needed
+        folder_a = str(Path(a).parent)
+        folder_b = str(Path(b).parent)
+        if folder_a == folder_b:
+            continue
+
+        # Skip pairs where either note has a generic/placeholder title
+        title_a = graph.nodes[a].get("title", a)
+        title_b = graph.nodes[b].get("title", b)
+        if title_a in _PLACEHOLDER_TITLES or title_b in _PLACEHOLDER_TITLES:
+            continue
+
         score = 0.0
         reasons = []
 
@@ -86,9 +109,21 @@ def _score_pairs(
                 shared = list(tags_a & tags_b)[:3]
                 reasons.append(f"shared tags: {', '.join(shared)}")
 
-        # Shared neighbours
-        nbrs_a = set(n for _, n in graph.out_edges(a)) | set(n for n, _ in graph.in_edges(a))
-        nbrs_b = set(n for _, n in graph.out_edges(b)) | set(n for n, _ in graph.in_edges(b))
+        # Shared neighbours (structural only — wikilinks/related_to/embed)
+        nbrs_a = set()
+        for _, n, d in graph.out_edges(a, data=True):
+            if d.get("type") in ("wikilink", "related_to", "embed"):
+                nbrs_a.add(n)
+        for n, _, d in graph.in_edges(a, data=True):
+            if d.get("type") in ("wikilink", "related_to", "embed"):
+                nbrs_a.add(n)
+        nbrs_b = set()
+        for _, n, d in graph.out_edges(b, data=True):
+            if d.get("type") in ("wikilink", "related_to", "embed"):
+                nbrs_b.add(n)
+        for n, _, d in graph.in_edges(b, data=True):
+            if d.get("type") in ("wikilink", "related_to", "embed"):
+                nbrs_b.add(n)
         nbrs_a.discard(b)
         nbrs_b.discard(a)
         shared_nbrs = nbrs_a & nbrs_b
@@ -97,15 +132,22 @@ def _score_pairs(
             titles = [graph.nodes[n].get("title", n) for n in list(shared_nbrs)[:2]]
             reasons.append(f"shared connections: {', '.join(titles)}")
 
+        # Same-type penalty: daily→daily, project→project etc. isn't useful
+        type_a = graph.nodes[a].get("type", "")
+        type_b = graph.nodes[b].get("type", "")
+        if type_a and type_b and type_a == type_b:
+            score *= 0.5
+            reasons.append(f"same type ({type_a}): reduced score")
+
         if score < min_score:
             continue
 
         results.append(
             LinkSuggestion(
                 source_path=a,
-                source_title=graph.nodes[a].get("title", a),
+                source_title=title_a,
                 target_path=b,
-                target_title=graph.nodes[b].get("title", b),
+                target_title=title_b,
                 score=round(score, 3),
                 reasons=reasons,
             )

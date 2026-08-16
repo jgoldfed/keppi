@@ -404,8 +404,16 @@ class GraphBuilder:
                 self._add_or_update_edge(target_path, note.path, "related_to", w.related_to_weight)
 
     def compute_tag_edges(self) -> None:
-        """Add tag_overlap edges between notes sharing tags (after all notes added)."""
+        """Add tag_overlap edges between notes sharing tags (after all notes added).
+
+        Filters: minimum Jaccard threshold (0.15) and per-node cap (top 20 edges).
+        This prevents common tags like #dailynotes from creating massive cliques
+        that drown out structural edges.
+        """
         weight = self.config.graph.tag_overlap_weight
+        min_jaccard = 0.15  # skip weak tag-only overlaps
+        max_edges_per_node = 20  # cap to prevent hub explosion
+
         # Build tag → [paths] index
         tag_index: dict[str, list[str]] = {}
         real_nodes = [n for n in self.graph.nodes if not str(n).startswith("__broken__")]
@@ -417,6 +425,8 @@ class GraphBuilder:
 
         # For each pair of notes sharing a tag, compute Jaccard similarity
         pairs_processed: set[frozenset] = set()
+        # Collect candidate edges: (a, b, weight) — will filter by cap after
+        candidate_edges: list[tuple[str, str, float]] = []
         for tag, paths in tag_index.items():
             if len(paths) < 2:
                 continue
@@ -432,10 +442,32 @@ class GraphBuilder:
                     if not tags_a or not tags_b:
                         continue
                     jaccard = len(tags_a & tags_b) / len(tags_a | tags_b)
+                    if jaccard < min_jaccard:
+                        continue
                     edge_weight = weight * jaccard
                     if edge_weight > 0:
-                        self._add_or_update_edge(a, b, "tag_overlap", edge_weight)
-                        self._add_or_update_edge(b, a, "tag_overlap", edge_weight)
+                        candidate_edges.append((a, b, edge_weight))
+
+        # Per-node cap: keep only top N strongest tag_overlap edges per node
+        # Build adjacency: node → list of (neighbor, weight)
+        adj: dict[str, list[tuple[str, float]]] = {}
+        for a, b, w in candidate_edges:
+            adj.setdefault(a, []).append((b, w))
+            adj.setdefault(b, []).append((a, w))
+
+        # Determine which edges survive the cap
+        kept_pairs: set[frozenset] = set()
+        for node, neighbors in adj.items():
+            # Sort by weight descending, keep top N
+            neighbors.sort(key=lambda x: -x[1])
+            for neighbor, w in neighbors[:max_edges_per_node]:
+                kept_pairs.add(frozenset((node, neighbor)))
+
+        # Add only edges that survived the cap (and the Jaccard threshold)
+        for a, b, w in candidate_edges:
+            if frozenset((a, b)) in kept_pairs:
+                self._add_or_update_edge(a, b, "tag_overlap", w)
+                self._add_or_update_edge(b, a, "tag_overlap", w)
 
     def compute_folder_edges(self) -> None:
         """Add folder_proximity edges between notes in the same directory."""

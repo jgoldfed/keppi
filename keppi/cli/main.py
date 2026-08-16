@@ -231,7 +231,7 @@ def _suggest_similar(graph, query: str) -> None:
 
 @app.command()
 def init(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory (default: auto-detect)"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory (default: auto-detect)"),
     quick: bool = typer.Option(False, "--quick", help="Write defaults without prompts"),
 ) -> None:
     """Initialize keppi configuration in ~/.keppi/keppi.toml."""
@@ -274,7 +274,7 @@ def init(
 
 @app.command()
 def build(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
 ) -> None:
     """Parse all notes and build the graph from scratch."""
     from keppi.graph.builder import GraphBuilder
@@ -352,7 +352,7 @@ def build(
 
 @app.command()
 def update(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
 ) -> None:
     """Incremental update — only parses changed files."""
     from keppi.graph.incremental import incremental_update
@@ -385,7 +385,7 @@ def update(
 
 @app.command()
 def stats(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
 ) -> None:
     """Show graph statistics."""
     vault_path = Path(vault).resolve() if vault else Path.cwd()
@@ -422,7 +422,7 @@ def stats(
 
 @app.command()
 def watch(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     stop: bool = typer.Option(False, "--stop", help="Stop the running watcher"),
 ) -> None:
     """Start (or stop) a background file watcher for automatic incremental updates."""
@@ -452,7 +452,7 @@ def watch(
 @app.command(name="blast-radius")
 def blast_radius(
     note: str = typer.Argument(..., help="Note title or path"),
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     depth: int = typer.Option(2, "--depth", "-d", help="BFS depth"),
     threshold: float = typer.Option(0.3, "--threshold", "-t", help="Minimum relevance score"),
     direction: str = typer.Option("both", "--direction", help="'out', 'in', or 'both'"),
@@ -496,7 +496,7 @@ def blast_radius(
 @app.command()
 def traverse(
     note: str = typer.Argument(..., help="Note title or path"),
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     depth: int = typer.Option(2, "--depth", "-d", help="Traversal depth"),
 ) -> None:
     """Expand the graph from a note, showing all reachable notes."""
@@ -544,7 +544,7 @@ def traverse(
 @app.command()
 def search(
     query: str = typer.Argument(..., help="Search query"),
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     limit: int = typer.Option(20, "--limit", "-n", help="Maximum results"),
 ) -> None:
     """Keyword search across title, tags, headings, and body."""
@@ -592,7 +592,7 @@ def search(
 
 @app.command()
 def embed(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     force: bool = typer.Option(False, "--force", help="Re-embed all notes, ignoring existing embeddings"),
 ) -> None:
     """Build semantic embeddings for all notes in the vault."""
@@ -691,7 +691,7 @@ def embed(
 @app.command(name="semantic-search")
 def semantic_search(
     query: str = typer.Argument(..., help="Natural language search query"),
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     limit: int = typer.Option(10, "--limit", "-n", help="Maximum results"),
     subfolder: Optional[str] = typer.Option(None, "--subfolder", help="Restrict to a subfolder (e.g. 'wiki' or 'projects/active')"),
 ) -> None:
@@ -789,7 +789,7 @@ def semantic_search(
 
 @app.command()
 def orphans(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
 ) -> None:
     """Notes with zero inbound and zero outbound connections."""
     from keppi.analysis.centrality import find_orphans
@@ -819,7 +819,7 @@ def orphans(
 
 @app.command()
 def communities(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     min_size: int = typer.Option(3, "--min-size", help="Minimum community size"),
     top: int = typer.Option(10, "--top", "-n", help="Maximum communities to show"),
 ) -> None:
@@ -858,7 +858,7 @@ def communities(
 
 @app.command()
 def gaps(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     max_bridges: int = typer.Option(2, "--max-bridges", help="Max bridge edges to call it a gap"),
     min_shared: int = typer.Option(1, "--min-shared", help="Minimum shared tags"),
 ) -> None:
@@ -900,7 +900,7 @@ def gaps(
 
 @app.command()
 def hubs(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     top: int = typer.Option(10, "--top", "-n", help="Number of hubs to show"),
 ) -> None:
     """Top notes by degree centrality."""
@@ -927,7 +927,7 @@ def hubs(
 
 @app.command()
 def bridges(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     top: int = typer.Option(10, "--top", "-n", help="Number of bridges to show"),
 ) -> None:
     """Top boundary-spanning notes by betweenness centrality. (Can be slow on large vaults.)"""
@@ -955,7 +955,7 @@ def bridges(
 
 @app.command()
 def drift(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     stale: int = typer.Option(30, "--stale", help="Days without update to be stale"),
     recent: int = typer.Option(14, "--recent", help="Days to consider recent"),
 ) -> None:
@@ -989,7 +989,7 @@ def drift(
 
 @app.command(name="broken-links")
 def broken_links(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     top: int = typer.Option(0, "--top", "-n", help="Limit results (0 = all)"),
 ) -> None:
     """List broken wikilinks (targets that don't exist)."""
@@ -1011,10 +1011,15 @@ def broken_links(
 
     table = Table(title=f"Broken links ({len(broken)})")
     table.add_column("Source", style="bold")
-    table.add_column("Missing target")
+    table.add_column("Source path", style="dim")
+    table.add_column("Missing target", style="red")
 
     for b in broken:
-        table.add_row(b.get("source_title", b.get("source", "")), b.get("target", ""))
+        table.add_row(
+            b.get("source_title", b.get("source_path", "")),
+            b.get("source_path", ""),
+            b.get("target_name", b.get("target", "")),
+        )
 
     console.print(table)
     conn.close()
@@ -1023,7 +1028,7 @@ def broken_links(
 @app.command(name="suggest-links")
 def suggest_links(
     note: Optional[str] = typer.Argument(None, help="Note title (omit for global)"),
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     top: int = typer.Option(10, "--top", "-n", help="Maximum suggestions"),
     min_score: float = typer.Option(0.3, "--min-score", help="Minimum suggestion score"),
 ) -> None:
@@ -1054,12 +1059,21 @@ def suggest_links(
     title = f"Link suggestions for: {note}" if note else "Global link suggestions"
     table = Table(title=title)
     table.add_column("From", style="bold")
+    table.add_column("From path", style="dim")
     table.add_column("To", style="bold")
+    table.add_column("To path", style="dim")
     table.add_column("Score", justify="right")
     table.add_column("Reason")
 
     for r in results:
-        table.add_row(r.source_title, r.target_title, f"{r.score:.2f}", "; ".join(r.reasons))
+        table.add_row(
+            r.source_title,
+            r.source_path,
+            r.target_title,
+            r.target_path,
+            f"{r.score:.2f}",
+            "; ".join(r.reasons),
+        )
 
     console.print(table)
     conn.close()
@@ -1068,7 +1082,7 @@ def suggest_links(
 @app.command(name="context-pack")
 def context_pack(
     topic: str = typer.Argument(..., help="Topic or note title"),
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     budget: int = typer.Option(4000, "--budget", help="Token budget"),
     depth: int = typer.Option(2, "--depth", "-d", help="Blast radius depth"),
 ) -> None:
@@ -1112,7 +1126,7 @@ def context_pack(
 def path(
     source: str = typer.Argument(..., help="Source note title"),
     target: str = typer.Argument(..., help="Target note title"),
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
 ) -> None:
     """Shortest path between two notes (ignores edge direction)."""
     import networkx as nx
@@ -1153,7 +1167,7 @@ def path(
 
 @app.command(name="mcp-server")
 def mcp_server(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     transport: str = typer.Option("stdio", "--transport", help="'stdio' or 'sse'"),
     port: int = typer.Option(3000, "--port", help="Port for SSE transport"),
 ) -> None:
@@ -1190,7 +1204,7 @@ def install(
 
 @app.command()
 def export(
-    vault: Optional[str] = typer.Argument(None, help="Vault directory"),
+    vault: Optional[str] = typer.Option(None, "--vault", "-v", help="Vault directory"),
     format: str = typer.Option("json", "--format", "-f", help="'json' or 'graphml'"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file (default: stdout)"),
 ) -> None:

@@ -33,14 +33,33 @@ def find_hubs(graph: nx.DiGraph, top_n: int = 20) -> list[CentralityResult]:
 
 
 def find_bridges(graph: nx.DiGraph, top_n: int = 20) -> list[CentralityResult]:
-    """Return top N nodes by betweenness centrality (boundary spanners)."""
-    real_nodes = {n for n in graph.nodes if not str(n).startswith("__broken__")}
-    subgraph = graph.subgraph(real_nodes).to_undirected()
+    """Return top N nodes by betweenness centrality (boundary spanners).
 
-    if subgraph.number_of_nodes() < 3:
+    Computes betweenness on the STRUCTURAL graph only (wikilinks, related_to,
+    embeds) — tag_overlap edges don't represent traversal paths and would
+    make betweenness meaningless. Uses sampled betweenness (k=100) for
+    speed on large graphs.
+    """
+    real_nodes = {n for n in graph.nodes if not str(n).startswith("__broken__")}
+
+    # Filter to structural edges only — tag_overlap is not a traversal path
+    structural_edges = [
+        (u, v)
+        for u, v, d in graph.edges(data=True)
+        if u in real_nodes
+        and v in real_nodes
+        and d.get("type") in ("wikilink", "related_to", "embed")
+    ]
+    subgraph = nx.Graph()
+    subgraph.add_nodes_from(real_nodes)
+    subgraph.add_edges_from(structural_edges)
+
+    if subgraph.number_of_nodes() < 3 or subgraph.number_of_edges() == 0:
         return []
 
-    centrality = nx.betweenness_centrality(subgraph, normalized=True)
+    # Sample 100 source nodes for approximate betweenness (fast on large graphs)
+    k = min(100, subgraph.number_of_nodes())
+    centrality = nx.betweenness_centrality(subgraph, k=k, normalized=True)
     results = [
         CentralityResult(
             path=node,
