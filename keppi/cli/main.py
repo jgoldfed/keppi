@@ -315,11 +315,25 @@ def build(
             builder.add_edges(note)
         builder.compute_tag_edges()
 
+    # Compute semantic similarity edges from embeddings (if available)
+    semantic_result = {"edges_added": 0}
     db_path = _get_db_path(config)
     db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = open_db(db_path)
+
+    from keppi.graph.storage import ensure_vec_table
+    has_vec = ensure_vec_table(conn, config.embed.dimension)
+    if has_vec:
+        try:
+            chunk_count = conn.execute("SELECT COUNT(*) as c FROM vec_embeddings").fetchone()["c"]
+            if chunk_count > 0:
+                with console.status("Computing semantic similarity edges…"):
+                    from keppi.graph.semantic_edges import compute_semantic_edges
+                    semantic_result = compute_semantic_edges(conn, builder.graph)
+        except Exception as e:
+            console.print(f"[dim]  ↳ Semantic edges skipped: {e}[/dim]")
 
     with console.status("Saving graph…"):
-        conn = open_db(db_path)
         save_graph(conn, builder.graph, str(vault_root))
 
     node_count = sum(1 for n in builder.graph.nodes if not str(n).startswith("__broken__"))
@@ -327,18 +341,22 @@ def build(
     console.print(
         f"[green]Built[/green] {node_count} notes, {edge_count:,} edges → {db_path}"
     )
+    if semantic_result["edges_added"]:
+        console.print(
+            f"[dim]  ↳ {semantic_result['edges_added']:,} semantic similarity edges "
+            f"({semantic_result['notes_compared']} notes compared, "
+            f"{semantic_result['pairs_above_threshold']:,} pairs above threshold)[/dim]"
+        )
 
-    # Check if embeddings exist and hint if not
-    if config.embed.auto_embed:
+    # Hint if embeddings don't exist yet
+    if config.embed.auto_embed and has_vec:
         try:
-            from keppi.graph.storage import ensure_vec_table
-            if ensure_vec_table(conn, config.embed.dimension):
-                existing = conn.execute("SELECT COUNT(*) as c FROM vec_embeddings").fetchone()["c"]
-                if existing == 0:
-                    console.print(
-                        f"[dim]  ↳ Semantic search not yet indexed. "
-                        f"Run [bold]keppi embed {vault_path}[/bold] to enable it.[/dim]"
-                    )
+            existing = conn.execute("SELECT COUNT(*) as c FROM vec_embeddings").fetchone()["c"]
+            if existing == 0:
+                console.print(
+                    f"[dim]  ↳ Semantic search not yet indexed. "
+                    f"Run [bold]keppi embed {vault_path}[/bold] to enable it.[/dim]"
+                )
         except Exception:
             pass
 
