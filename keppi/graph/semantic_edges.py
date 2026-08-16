@@ -27,8 +27,8 @@ def compute_semantic_edges(
     conn: sqlite3.Connection,
     graph,
     *,
-    min_similarity: float = 0.65,
-    max_edges_per_node: int = 15,
+    min_similarity: float = 0.75,
+    max_edges_per_node: int = 10,
     weight: float = 0.8,
 ) -> dict[str, int]:
     """
