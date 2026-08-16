@@ -17,6 +17,10 @@ class AffectedNote:
     edge_types: list[str] = field(default_factory=list)
 
 
+# Edge types that represent real structural connections (explicit references)
+STRUCTURAL_EDGE_TYPES = frozenset({"wikilink", "related_to", "embed", "semantic_similarity"})
+
+
 def compute_blast_radius(
     graph: nx.DiGraph,
     seed: str,
@@ -24,14 +28,20 @@ def compute_blast_radius(
     depth: int = 2,
     threshold: float = 0.3,
     direction: str = "both",
+    include_tags: bool = False,
 ) -> list[AffectedNote]:
     """
     BFS from seed node, accumulating weighted relevance scores.
 
     direction: "out" (follow outgoing links), "in" (backlinks only), "both"
+    include_tags: if True, also traverse tag_overlap edges (noisy, off by default)
     """
     if not graph.has_node(seed):
         return []
+
+    allowed_types = STRUCTURAL_EDGE_TYPES if not include_tags else (
+        STRUCTURAL_EDGE_TYPES | {"tag_overlap", "folder_proximity"}
+    )
 
     visited: dict[str, AffectedNote] = {}
     queue: deque[tuple[str, float, int, list[str]]] = deque()
@@ -61,7 +71,7 @@ def compute_blast_radius(
         if dist == depth:
             continue
 
-        neighbours = _get_neighbours(graph, node, direction)
+        neighbours = _get_neighbours(graph, node, direction, allowed_types)
         for nbr, edge_data in neighbours:
             if nbr.startswith("__broken__"):
                 continue
@@ -78,15 +88,17 @@ def compute_blast_radius(
 
 
 def _get_neighbours(
-    graph: nx.DiGraph, node: str, direction: str
+    graph: nx.DiGraph, node: str, direction: str, allowed_types: set[str] | None = None,
 ) -> list[tuple[str, dict]]:
     neighbours = []
     if direction in ("out", "both"):
         for _, dst, data in graph.out_edges(node, data=True):
-            neighbours.append((dst, data))
+            if allowed_types is None or data.get("type", "wikilink") in allowed_types:
+                neighbours.append((dst, data))
     if direction in ("in", "both"):
         for src, _, data in graph.in_edges(node, data=True):
-            neighbours.append((src, data))
+            if allowed_types is None or data.get("type", "wikilink") in allowed_types:
+                neighbours.append((src, data))
     return neighbours
 
 

@@ -1148,7 +1148,13 @@ def path(
         conn.close()
         raise typer.Exit(1)
 
-    undirected = graph.to_undirected()
+    # Structural-only path by default — tag_overlap creates false bridges
+    structural_types = {"wikilink", "related_to", "embed", "semantic_similarity"}
+    undirected = nx.Graph()
+    undirected.add_nodes_from(n for n in graph.nodes if not str(n).startswith("__broken__"))
+    for u, v, d in graph.edges(data=True):
+        if d.get("type") in structural_types:
+            undirected.add_edge(u, v)
     try:
         shortest = nx.shortest_path(undirected, src_node, tgt_node)
     except nx.NetworkXNoPath:

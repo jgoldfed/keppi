@@ -205,6 +205,8 @@ def traverse_graph(note: str, depth: int = 2, vault_path: str = ".") -> dict[str
         return {"error": f"Note not found: {note!r}"}
 
     real = _real_nodes(graph)
+    # Structural-only traversal — tag_overlap creates false paths
+    structural_types = {"wikilink", "related_to", "embed", "semantic_similarity"}
     visited: dict[str, int] = {node: 0}
     queue: deque[tuple[str, int]] = deque([(node, 0)])
 
@@ -213,11 +215,11 @@ def traverse_graph(note: str, depth: int = 2, vault_path: str = ".") -> dict[str
         if dist >= depth:
             continue
         for _, dst, data in graph.out_edges(current, data=True):
-            if dst in real and dst not in visited:
+            if dst in real and dst not in visited and data.get("type") in structural_types:
                 visited[dst] = dist + 1
                 queue.append((dst, dist + 1))
         for src, _, data in graph.in_edges(current, data=True):
-            if src in real and src not in visited:
+            if src in real and src not in visited and data.get("type") in structural_types:
                 visited[src] = dist + 1
                 queue.append((src, dist + 1))
 
@@ -250,7 +252,14 @@ def find_path(source: str, target: str, vault_path: str = ".") -> dict[str, Any]
         return {"error": f"Note not found: {target!r}"}
 
     try:
-        path_nodes = nx.shortest_path(graph.to_undirected(), src_node, dst_node)
+        # Structural-only path by default — tag_overlap creates false bridges
+        structural_types = {"wikilink", "related_to", "embed", "semantic_similarity"}
+        structural = nx.Graph()
+        structural.add_nodes_from(_real_nodes(graph))
+        for u, v, d in graph.edges(data=True):
+            if d.get("type") in structural_types:
+                structural.add_edge(u, v)
+        path_nodes = nx.shortest_path(structural, src_node, dst_node)
     except nx.NetworkXNoPath:
         return {"error": f"No path between {source!r} and {target!r}"}
     except nx.NodeNotFound:
@@ -687,10 +696,18 @@ def get_surprising_connections(top_n: int = 10, vault_path: str = ".") -> dict[s
     # Surprising = high score but not already linked, filtered to distant pairs
     results = _suggest(graph, source=None, top_n=top_n * 3, min_score=0.5)
 
+    # Build structural-only graph for distance computation
+    structural_types = {"wikilink", "related_to", "embed", "semantic_similarity"}
+    structural = nx.Graph()
+    structural.add_nodes_from(_real_nodes(graph))
+    for u, v, d in graph.edges(data=True):
+        if d.get("type") in structural_types:
+            structural.add_edge(u, v)
+
     surprising = []
     for r in results:
         try:
-            dist = nx.shortest_path_length(graph.to_undirected(), r.source_path, r.target_path)
+            dist = nx.shortest_path_length(structural, r.source_path, r.target_path)
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             dist = 99
         if dist >= 3:
